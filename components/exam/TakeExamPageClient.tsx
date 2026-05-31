@@ -41,6 +41,7 @@ export function TakeExamPageClient({
   const expiryMs = useMemo(() => new Date(startedAt).getTime() + durationMinutes * 60_000, [startedAt, durationMinutes]);
   const [secondsLeft, setSecondsLeft] = useState(() => Math.max(0, Math.round((expiryMs - Date.now()) / 1000)));
   const [autoSubmitTrigger, setAutoSubmitTrigger] = useState(0);
+  const [sessionWarning, setSessionWarning] = useState(false);
   const hasExpired = useRef(false);
 
   useEffect(() => {
@@ -57,6 +58,22 @@ export function TakeExamPageClient({
     }
   }, [secondsLeft]);
 
+  useEffect(() => {
+    async function pingSession() {
+      if (Date.now() >= expiryMs) return;
+      try {
+        const response = await fetch("/api/auth/ping", { cache: "no-store" });
+        setSessionWarning(!response.ok);
+      } catch {
+        setSessionWarning(true);
+      }
+    }
+
+    void pingSession();
+    const timer = window.setInterval(() => void pingSession(), 60_000);
+    return () => window.clearInterval(timer);
+  }, [expiryMs]);
+
   return (
     <div className="flex h-screen min-h-0 flex-col overflow-hidden bg-[#eef4f8]">
       <header className="sticky top-0 z-30 border-b border-slate-200/80 bg-white/95 shadow-sm backdrop-blur">
@@ -64,6 +81,7 @@ export function TakeExamPageClient({
           <div className="min-w-0">
             <h1 className="truncate text-lg font-black text-slate-950">{title}</h1>
             {description ? <p className="text-xs font-semibold text-slate-500">{description}</p> : null}
+            {sessionWarning ? <p className="mt-0.5 text-xs font-bold text-rose-600">Phiên đăng nhập đang gián đoạn. Đáp án đã lưu vẫn được giữ, hãy kiểm tra mạng hoặc tải lại trang.</p> : null}
           </div>
           <ExamTimer secondsLeft={secondsLeft} />
         </div>
