@@ -38,7 +38,7 @@ export default async function TeacherExamsPage() {
 
       <div className="grid gap-4">
         {exams?.map((exam) => (
-          <article key={exam.id} className="surface overflow-hidden transition hover:border-teal-200 hover:shadow-md">
+          <article key={exam.id} className="surface overflow-hidden transition hover:border-teal-200 hover:shadow-lg">
             <div className="grid gap-4 p-5 lg:grid-cols-[minmax(0,1fr)_auto] lg:items-center">
               <div className="min-w-0">
                 <div className="mb-3 flex flex-wrap items-center gap-3">
@@ -79,14 +79,22 @@ export default async function TeacherExamsPage() {
                 </Link>
                 {exam.status !== "closed" ? (
                   <form action={closeExam.bind(null, exam.id)}>
-                    <ConfirmSubmitButton variant="secondary" className="h-9 gap-2 px-3" message={`Đóng đề ${exam.title}? Học sinh sẽ không nên tiếp tục làm đề này.`}>
+                    <ConfirmSubmitButton
+                      variant="secondary"
+                      className="h-9 gap-2 px-3"
+                      message={`Đóng đề ${exam.title}? Học sinh sẽ không thể tiếp tục làm đề này.`}
+                    >
                       <Lock size={16} />
                       Đóng
                     </ConfirmSubmitButton>
                   </form>
                 ) : null}
                 <form action={deleteExam.bind(null, exam.id)}>
-                  <ConfirmSubmitButton className="h-9 gap-2 px-3" message={`Xoá đề ${exam.title}? Toàn bộ câu hỏi, giao đề, bài nộp và file PDF liên quan sẽ bị xoá.`}>
+                  <ConfirmSubmitButton
+                    variant="danger"
+                    className="h-9 gap-2 px-3"
+                    message={`Xoá đề ${exam.title}? Toàn bộ câu hỏi, giao đề, bài nộp và file PDF liên quan sẽ bị xoá.`}
+                  >
                     <Trash2 size={16} />
                     Xoá
                   </ConfirmSubmitButton>

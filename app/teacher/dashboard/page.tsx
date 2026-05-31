@@ -1,4 +1,5 @@
 import Link from "next/link";
+import { BookOpen, GraduationCap, Plus, Users, Unlock } from "lucide-react";
 import { PageHeader } from "@/components/layout/PageHeader";
 import { Button } from "@/components/ui/button";
 import { requireTeacher } from "@/lib/auth";
@@ -15,35 +16,69 @@ export default async function TeacherDashboardPage() {
     supabase.from("exams").select("*").eq("teacher_id", teacher.id).order("created_at", { ascending: false }).limit(5),
     supabase.from("classes").select("id").eq("teacher_id", teacher.id)
   ]);
+
   const ids = classIds?.map((item) => item.id) ?? [];
   const { count: studentCount } = ids.length
     ? await supabase.from("class_students").select("student_id", { count: "exact", head: true }).in("class_id", ids)
     : { count: 0 };
   const { count: openCount } = await supabase.from("exams").select("id", { count: "exact", head: true }).eq("teacher_id", teacher.id).eq("status", "open");
 
+  const stats = [
+    { label: "Lớp học", value: classCount ?? 0, icon: GraduationCap, tone: "bg-teal-50 text-teal-700" },
+    { label: "Học sinh", value: studentCount ?? 0, icon: Users, tone: "bg-sky-50 text-sky-700" },
+    { label: "Đề thi", value: examCount ?? 0, icon: BookOpen, tone: "bg-violet-50 text-violet-700" },
+    { label: "Đề đang mở", value: openCount ?? 0, icon: Unlock, tone: "bg-emerald-50 text-emerald-700" }
+  ];
+
   return (
     <>
-      <PageHeader title="Tổng quan" description={`Xin chào, ${teacher.full_name}`} action={<Link href="/teacher/exams/create"><Button>Tạo đề mới</Button></Link>} />
-      <div className="mb-6 grid gap-4 sm:grid-cols-2 lg:grid-cols-4">
-        {[["Lớp học", classCount], ["Học sinh", studentCount], ["Đề thi", examCount], ["Đề đang mở", openCount]].map(([label, value]) => (
-          <div key={label} className="surface p-5">
-            <p className="text-sm text-slate-600">{label}</p>
-            <p className="mt-2 text-3xl font-bold">{value ?? 0}</p>
+      <PageHeader
+        title="Tổng quan"
+        description={`Xin chào, ${teacher.full_name}. Theo dõi lớp học, đề thi và kết quả làm bài tại đây.`}
+        action={
+          <Link href="/teacher/exams/create">
+            <Button className="gap-2">
+              <Plus size={18} />
+              Tạo đề mới
+            </Button>
+          </Link>
+        }
+      />
+
+      <div className="mb-6 grid gap-4 sm:grid-cols-2 xl:grid-cols-4">
+        {stats.map((stat) => (
+          <div key={stat.label} className="surface p-5 transition hover:shadow-md">
+            <div className="flex items-start justify-between gap-3">
+              <div>
+                <p className="text-sm font-medium text-slate-600">{stat.label}</p>
+                <p className="mt-3 text-3xl font-bold text-slate-950">{stat.value}</p>
+              </div>
+              <div className={`flex h-11 w-11 items-center justify-center rounded-xl ${stat.tone}`}>
+                <stat.icon size={22} />
+              </div>
+            </div>
           </div>
         ))}
       </div>
+
       <div className="surface overflow-hidden">
-        <div className="border-b p-4 font-semibold">Bài thi gần đây</div>
-        <div className="divide-y">
+        <div className="flex items-center justify-between border-b border-slate-200 p-4">
+          <h2 className="font-semibold">Bài thi gần đây</h2>
+          <Link href="/teacher/exams" className="text-sm font-semibold text-teal-700 hover:text-teal-800">
+            Xem tất cả
+          </Link>
+        </div>
+        <div className="divide-y divide-slate-100">
           {exams?.map((exam) => (
-            <Link key={exam.id} href={`/teacher/exams/${exam.id}/results`} className="flex items-center justify-between p-4 hover:bg-slate-50">
-              <div>
-                <p className="font-medium">{exam.title}</p>
-                <p className="text-sm text-slate-500">{formatDateTime(exam.created_at)}</p>
+            <Link key={exam.id} href={`/teacher/exams/${exam.id}/results`} className="flex items-center justify-between gap-3 p-4 transition hover:bg-slate-50">
+              <div className="min-w-0">
+                <p className="truncate font-semibold text-slate-950">{exam.title}</p>
+                <p className="mt-1 text-sm text-slate-500">{formatDateTime(exam.created_at)}</p>
               </div>
               <ExamStatusBadge status={exam.status} />
             </Link>
           ))}
+          {!exams?.length ? <div className="p-6 text-sm text-slate-600">Chưa có đề thi nào.</div> : null}
         </div>
       </div>
     </>

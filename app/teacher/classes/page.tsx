@@ -32,7 +32,7 @@ export default async function ClassesPage() {
 
       <div className="grid gap-4 xl:grid-cols-3">
         {classes?.map((item) => (
-          <article key={item.id} className="surface p-5 transition hover:border-teal-200 hover:shadow-md">
+          <article key={item.id} className="surface p-5 transition hover:border-teal-200 hover:shadow-lg">
             <div className="flex min-w-0 items-start gap-3">
               <div className="flex h-11 w-11 shrink-0 items-center justify-center rounded-xl bg-teal-50 text-teal-700">
                 <GraduationCap size={22} />
@@ -62,7 +62,11 @@ export default async function ClassesPage() {
                 </Button>
               </Link>
               <form action={deleteClass.bind(null, item.id)}>
-                <ConfirmSubmitButton className="gap-2" message={`Xoá lớp ${item.name}? Toàn bộ liên kết học sinh và giao đề của lớp này sẽ bị xoá.`}>
+                <ConfirmSubmitButton
+                  variant="danger"
+                  className="gap-2"
+                  message={`Xoá lớp ${item.name}? Toàn bộ liên kết học sinh và giao đề của lớp này sẽ bị xoá.`}
+                >
                   <Trash2 size={16} />
                   Xoá
                 </ConfirmSubmitButton>
