@@ -1,5 +1,6 @@
 import { redirect } from "next/navigation";
 import { TakeExamPageClient } from "@/components/exam/TakeExamPageClient";
+import { finalizeExpiredSubmission } from "@/lib/actions/student";
 import { requireStudent } from "@/lib/auth";
 import { createServiceClient } from "@/lib/supabase/server";
 
@@ -12,6 +13,12 @@ export default async function TakeExamPage({ params }: { params: Promise<{ id: s
 
   if (!submission) redirect(`/student/exams/${id}/start`);
   if (submission.status === "graded") redirect(`/student/exams/${id}/result`);
+
+  const startedAt = submission.started_at ? new Date(submission.started_at).getTime() : Date.now();
+  const durationMinutes = Number(exam?.duration_minutes ?? 0);
+  if (submission.status === "doing" && durationMinutes > 0 && Date.now() >= startedAt + durationMinutes * 60_000) {
+    await finalizeExpiredSubmission(submission.id);
+  }
 
   const { data: questions } = await supabase
     .from("exam_questions")
