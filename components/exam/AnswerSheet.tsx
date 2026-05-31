@@ -84,24 +84,24 @@ export function AnswerSheet({
 
   return (
     <div className="flex h-full min-h-0 flex-col">
-      <div className="border-b border-slate-200 bg-white px-4 py-3">
-        <div className="flex items-center justify-between gap-3">
+      <div className="shrink-0 border-b border-slate-200 bg-white px-2.5 py-1.5">
+        <div className="flex items-center justify-between gap-2">
           <div>
-            <h2 className="text-base font-black text-slate-950">Phiếu trả lời</h2>
-            <p className="mt-0.5 text-xs font-medium text-slate-500">
+            <h2 className="text-base font-black leading-tight text-slate-950">Phiếu trả lời</h2>
+            <p className="text-xs font-medium text-slate-500">
               Đã làm {answeredCount}/{answerable.length} câu
             </p>
           </div>
-          <span className="rounded-full bg-teal-50 px-3 py-1 text-xs font-bold text-teal-800 ring-1 ring-teal-100">{pending ? "Đang lưu" : "Đã sẵn sàng"}</span>
+          <span className="rounded-full bg-teal-50 px-2 py-0.5 text-xs font-bold text-teal-800 ring-1 ring-teal-100">{pending ? "Đang lưu" : "Sẵn sàng"}</span>
         </div>
       </div>
 
-      <div className="min-h-0 flex-1 space-y-5 overflow-y-auto p-4">
+      <div className="min-h-0 flex-1 space-y-2 overflow-y-auto p-2 pb-3">
         <SectionTitle title="Phần I" subtitle="Trắc nghiệm" />
-        <div className="grid gap-3">
+        <div className="grid gap-1.5">
           {singles.map((q) => (
             <QuestionCard key={q.id} title={`Câu ${q.question_no}`}>
-              <div className="grid grid-cols-4 gap-2">
+              <div className="grid grid-cols-4 gap-1.5">
                 {["A", "B", "C", "D"].map((option) => (
                   <ChoiceOption key={option} checked={answers[q.id] === option} name={q.id} label={option} onChange={() => update(q, option)} />
                 ))}
@@ -111,14 +111,14 @@ export function AnswerSheet({
         </div>
 
         <SectionTitle title="Phần II" subtitle="Đúng/Sai" />
-        <div className="grid gap-3">
+        <div className="grid gap-1.5">
           {groups.map((group) => (
             <QuestionCard key={group.id} title={`Câu ${group.question_no}`}>
-              <div className="grid gap-2">
+              <div className="grid gap-1.5">
                 {questions
                   .filter((q) => q.parent_question_id === group.id)
                   .map((item) => (
-                    <div key={item.id} className="grid grid-cols-[30px_1fr_1fr] items-center gap-2">
+                    <div key={item.id} className="grid grid-cols-[24px_1fr_1fr] items-center gap-1.5">
                       <span className="text-sm font-bold text-slate-700">{item.sub_label})</span>
                       <ChoiceOption checked={answers[item.id] === "true"} name={item.id} label="Đúng" onChange={() => update(item, "true")} />
                       <ChoiceOption checked={answers[item.id] === "false"} name={item.id} label="Sai" onChange={() => update(item, "false")} />
@@ -130,22 +130,27 @@ export function AnswerSheet({
         </div>
 
         <SectionTitle title="Phần III" subtitle="Trả lời ngắn" />
-        <div className="grid gap-3">
+        <div className="grid gap-1.5">
           {shorts.map((q) => (
             <QuestionCard key={q.id} title={`Câu ${q.question_no}`}>
-              <Input value={answers[q.id] ?? ""} onChange={(event) => update(q, event.target.value)} placeholder="Nhập đáp án" />
+              <Input className="h-9 rounded-lg py-1.5" value={answers[q.id] ?? ""} onChange={(event) => update(q, event.target.value)} placeholder="Nhập đáp án" />
             </QuestionCard>
           ))}
         </div>
       </div>
 
-      <div className="flex shrink-0 items-center justify-end gap-3 border-t border-slate-200 bg-white p-4 shadow-[0_-8px_20px_rgba(15,23,42,0.08)]">
-        <Button variant="secondary" disabled={pending} className="min-w-28">
-          Lưu tạm
-        </Button>
-        <Button type="button" onClick={() => submit()} disabled={pending} className="min-w-32">
-          {pending ? "Đang xử lý..." : "Nộp bài"}
-        </Button>
+      <div className="sticky bottom-0 z-10 flex shrink-0 items-center justify-between gap-2 border-t border-slate-200 bg-white px-2.5 py-2 shadow-[0_-8px_20px_rgba(15,23,42,0.08)]">
+        <p className="hidden text-xs font-semibold text-slate-500 sm:block">
+          {answeredCount}/{answerable.length} câu
+        </p>
+        <div className="ml-auto flex gap-2">
+          <Button variant="secondary" disabled={pending} className="min-h-9 min-w-20 rounded-lg px-3 py-1.5">
+            Lưu
+          </Button>
+          <Button type="button" onClick={() => submit()} disabled={pending} className="min-h-9 min-w-28 rounded-lg px-3 py-1.5">
+            {pending ? "Đang xử lý..." : "Nộp bài"}
+          </Button>
+        </div>
       </div>
     </div>
   );
@@ -153,8 +158,8 @@ export function AnswerSheet({
 
 function SectionTitle({ title, subtitle }: { title: string; subtitle: string }) {
   return (
-    <div className="flex items-end justify-between border-b border-slate-200 pb-2">
-      <h3 className="text-sm font-black uppercase tracking-wide text-slate-900">{title}</h3>
+    <div className="flex items-end justify-between border-b border-slate-200 pb-1">
+      <h3 className="text-xs font-black uppercase tracking-wide text-slate-900">{title}</h3>
       <span className="text-xs font-semibold text-slate-500">{subtitle}</span>
     </div>
   );
@@ -162,8 +167,8 @@ function SectionTitle({ title, subtitle }: { title: string; subtitle: string }) 
 
 function QuestionCard({ title, children }: { title: string; children: React.ReactNode }) {
   return (
-    <div className="rounded-2xl border border-slate-200 bg-white p-3 shadow-sm">
-      <p className="mb-3 text-sm font-black text-slate-950">{title}</p>
+    <div className="rounded-lg border border-slate-200 bg-white p-2 shadow-sm">
+      <p className="mb-1.5 text-sm font-black leading-tight text-slate-950">{title}</p>
       {children}
     </div>
   );
@@ -173,7 +178,7 @@ function ChoiceOption({ checked, label, name, onChange }: { checked: boolean; la
   return (
     <label
       className={cn(
-        "flex min-h-11 cursor-pointer items-center justify-center gap-2 rounded-xl border px-2 text-sm font-bold transition",
+        "flex min-h-9 cursor-pointer items-center justify-center gap-1.5 rounded-lg border px-2 text-sm font-bold transition",
         checked ? "border-teal-600 bg-teal-50 text-teal-800 shadow-sm" : "border-slate-200 bg-white text-slate-700 hover:bg-slate-50"
       )}
     >

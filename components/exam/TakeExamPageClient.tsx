@@ -60,17 +60,16 @@ export function TakeExamPageClient({
   return (
     <div className="min-h-screen bg-[#eef4f8]">
       <header className="sticky top-0 z-30 border-b border-slate-200/80 bg-white/95 shadow-sm backdrop-blur">
-        <div className="mx-auto flex max-w-[1540px] flex-col gap-3 px-4 py-3 sm:px-6 lg:flex-row lg:items-center lg:justify-between lg:px-8">
+        <div className="flex items-center justify-between gap-3 px-2 py-1.5 sm:px-3">
           <div className="min-w-0">
-            <p className="text-xs font-black uppercase tracking-[0.16em] text-teal-700">Đang làm bài</p>
-            <h1 className="mt-1 truncate text-2xl font-black text-slate-950">{title}</h1>
-            {description ? <p className="mt-1 text-sm font-medium text-slate-500">{description}</p> : null}
+            <h1 className="truncate text-lg font-black text-slate-950">{title}</h1>
+            {description ? <p className="text-xs font-semibold text-slate-500">{description}</p> : null}
           </div>
           <ExamTimer secondsLeft={secondsLeft} />
         </div>
       </header>
 
-      <main className="mx-auto max-w-[1540px] px-4 py-4 sm:px-6 lg:px-8">
+      <main className="px-1.5 py-1.5 sm:px-2">
         <TakeExamWorkspace
           fileUrl={fileUrl}
           submissionId={submissionId}

@@ -24,8 +24,8 @@ type ExistingAnswer = {
 type LayoutMode = "question" | "balanced" | "answer";
 
 const modes: Array<{ value: LayoutMode; label: string; icon: React.ElementType; grid: string }> = [
-  { value: "question", label: "Đề rộng", icon: FileText, grid: "lg:grid-cols-[minmax(0,1fr)_420px]" },
-  { value: "balanced", label: "Chia đôi", icon: Columns2, grid: "lg:grid-cols-[minmax(0,1fr)_minmax(460px,0.72fr)]" },
+  { value: "question", label: "Đề rộng", icon: FileText, grid: "lg:grid-cols-[minmax(0,1fr)_390px]" },
+  { value: "balanced", label: "Chia đôi", icon: Columns2, grid: "lg:grid-cols-[minmax(0,1fr)_minmax(430px,0.72fr)]" },
   { value: "answer", label: "Đáp án rộng", icon: ListChecks, grid: "lg:grid-cols-[minmax(0,0.78fr)_minmax(520px,1fr)]" }
 ];
 
@@ -46,9 +46,9 @@ export function TakeExamWorkspace({
   const current = modes.find((item) => item.value === mode) ?? modes[0];
 
   return (
-    <div className="space-y-3">
-      <div className="flex flex-wrap items-center justify-between gap-3 rounded-2xl border border-slate-200 bg-white p-2 shadow-sm">
-        <div className="flex flex-wrap gap-1.5">
+    <div className="space-y-1.5">
+      <div className="flex flex-wrap items-center justify-between gap-2 rounded-lg border border-slate-200 bg-white px-1.5 py-1 shadow-sm">
+        <div className="flex flex-wrap gap-1">
           {modes.map((item) => {
             const Icon = item.icon;
             const active = mode === item.value;
@@ -58,34 +58,34 @@ export function TakeExamWorkspace({
                 type="button"
                 onClick={() => setMode(item.value)}
                 className={cn(
-                  "inline-flex h-9 items-center gap-2 rounded-xl px-3 text-sm font-bold transition",
+                  "inline-flex h-8 items-center gap-1.5 rounded-md px-2 text-xs font-bold transition",
                   active ? "bg-teal-700 text-white shadow-sm" : "text-slate-600 hover:bg-slate-100 hover:text-slate-950"
                 )}
               >
-                <Icon size={16} />
+                <Icon size={14} />
                 {item.label}
               </button>
             );
           })}
         </div>
-        <p className="hidden text-xs font-medium text-slate-500 md:block">Chọn bố cục dễ nhìn nhất khi làm bài.</p>
+        <span className="hidden pr-1 text-xs font-semibold text-slate-500 md:inline">Bố cục</span>
       </div>
 
-      <div className={cn("h-[calc(100vh-160px)] min-h-[650px] overflow-hidden lg:grid lg:gap-4", current.grid)}>
-        <section className="hidden min-h-0 overflow-hidden rounded-2xl border border-slate-200 bg-white shadow-sm lg:block">
+      <div className={cn("h-[calc(100vh-83px)] min-h-[620px] overflow-hidden lg:grid lg:gap-2", current.grid)}>
+        <section className="hidden min-h-0 overflow-hidden rounded-lg border border-slate-200 bg-white shadow-sm lg:block">
           <PdfViewer fileUrl={fileUrl} height="100%" className="h-full w-full border-0 bg-white" />
         </section>
 
         <section className="lg:hidden">
-          <details className="surface mb-4 p-3">
+          <details className="surface mb-2 p-2">
             <summary className="font-semibold">Đề thi PDF</summary>
-            <div className="mt-3">
+            <div className="mt-2">
               <PdfViewer fileUrl={fileUrl} height={520} />
             </div>
           </details>
         </section>
 
-        <section className="min-h-0 overflow-hidden rounded-2xl border border-slate-200 bg-slate-50 shadow-sm">
+        <section className="min-h-0 overflow-hidden rounded-lg border border-slate-200 bg-slate-50 shadow-sm">
           <AnswerSheet submissionId={submissionId} questions={questions} existingAnswers={existingAnswers} autoSubmitTrigger={autoSubmitTrigger} />
         </section>
       </div>
