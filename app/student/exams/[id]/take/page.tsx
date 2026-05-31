@@ -1,6 +1,5 @@
 import { redirect } from "next/navigation";
-import { TakeExamWorkspace } from "@/components/exam/TakeExamWorkspace";
-import { PageHeader } from "@/components/layout/PageHeader";
+import { TakeExamPageClient } from "@/components/exam/TakeExamPageClient";
 import { requireStudent } from "@/lib/auth";
 import { createServiceClient } from "@/lib/supabase/server";
 
@@ -23,9 +22,15 @@ export default async function TakeExamPage({ params }: { params: Promise<{ id: s
   const { data: signed } = exam?.question_pdf_path ? await supabase.storage.from("exam-pdfs").createSignedUrl(exam.question_pdf_path, 60 * 60) : { data: null };
 
   return (
-    <>
-      <PageHeader title="Làm bài" description={`${exam?.title} - ${exam?.duration_minutes} phút`} />
-      <TakeExamWorkspace fileUrl={signed?.signedUrl} submissionId={submission.id} questions={questions ?? []} existingAnswers={answers ?? []} />
-    </>
+    <TakeExamPageClient
+      title="Làm bài"
+      description={`${exam?.title} - ${exam?.duration_minutes} phút`}
+      fileUrl={signed?.signedUrl}
+      submissionId={submission.id}
+      questions={questions ?? []}
+      existingAnswers={answers ?? []}
+      durationMinutes={exam?.duration_minutes ?? 90}
+      startedAt={submission.started_at ?? new Date().toISOString()}
+    />
   );
 }
