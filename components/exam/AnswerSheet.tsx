@@ -4,6 +4,7 @@ import { useMemo, useState, useTransition } from "react";
 import { saveAnswer, submitExam } from "@/lib/actions/student";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
+import { cn } from "@/lib/utils/format";
 
 type Question = {
   id: string;
@@ -29,6 +30,7 @@ export function AnswerSheet({ submissionId, questions, existingAnswers }: { subm
     });
     return map;
   }, [existingAnswers]);
+
   const [answers, setAnswers] = useState<Record<string, string>>(initial);
   const [pending, startTransition] = useTransition();
   const singles = questions.filter((q) => q.question_type === "single_choice");
@@ -64,58 +66,89 @@ export function AnswerSheet({ submissionId, questions, existingAnswers }: { subm
   return (
     <div className="flex h-full min-h-0 flex-col">
       <div className="min-h-0 flex-1 space-y-4 overflow-y-auto p-3">
-      <section>
-        <h2 className="mb-3 text-base font-semibold">Phần I</h2>
-        <div className="grid gap-2">
-          {singles.map((q) => (
-            <div key={q.id} className="rounded-lg border border-slate-200 bg-white p-2.5 shadow-sm">
-              <p className="mb-2 text-sm font-semibold">Câu {q.question_no}</p>
-              <div className="grid grid-cols-4 gap-1.5">
-                {["A", "B", "C", "D"].map((option) => (
-                  <label key={option} className="flex h-10 items-center justify-center gap-1 rounded-md border border-slate-200 text-sm transition hover:bg-slate-50">
-                    <input type="radio" name={q.id} checked={answers[q.id] === option} onChange={() => update(q, option)} /> {option}
-                  </label>
-                ))}
+        <section>
+          <h2 className="mb-3 text-base font-black text-slate-950">Phần I</h2>
+          <div className="grid gap-2">
+            {singles.map((q) => (
+              <div key={q.id} className="rounded-xl border border-slate-200 bg-white p-3 shadow-sm">
+                <p className="mb-2 text-sm font-bold">Câu {q.question_no}</p>
+                <div className="grid grid-cols-4 gap-2">
+                  {["A", "B", "C", "D"].map((option) => {
+                    const checked = answers[q.id] === option;
+                    return (
+                      <label
+                        key={option}
+                        className={cn(
+                          "flex h-11 items-center justify-center gap-2 rounded-xl border text-sm font-semibold transition",
+                          checked ? "border-teal-600 bg-teal-50 text-teal-800" : "border-slate-200 hover:bg-slate-50"
+                        )}
+                      >
+                        <input type="radio" name={q.id} checked={checked} onChange={() => update(q, option)} /> {option}
+                      </label>
+                    );
+                  })}
+                </div>
               </div>
-            </div>
-          ))}
-        </div>
-      </section>
-      <section>
-        <h2 className="mb-3 text-base font-semibold">Phần II</h2>
-        <div className="space-y-3">
-          {groups.map((group) => (
-            <div key={group.id} className="rounded-lg border border-slate-200 bg-white p-2.5 shadow-sm">
-              <p className="mb-2 text-sm font-semibold">Câu {group.question_no}</p>
-              <div className="grid gap-2">
-                {questions.filter((q) => q.parent_question_id === group.id).map((item) => (
-                  <div key={item.id} className="grid grid-cols-[32px_1fr_1fr] items-center gap-2">
-                    <span>{item.sub_label})</span>
-                    <label className="rounded-md border border-slate-200 p-2 text-sm transition hover:bg-slate-50"><input type="radio" name={item.id} checked={answers[item.id] === "true"} onChange={() => update(item, "true")} /> Đúng</label>
-                    <label className="rounded-md border border-slate-200 p-2 text-sm transition hover:bg-slate-50"><input type="radio" name={item.id} checked={answers[item.id] === "false"} onChange={() => update(item, "false")} /> Sai</label>
-                  </div>
-                ))}
+            ))}
+          </div>
+        </section>
+
+        <section>
+          <h2 className="mb-3 text-base font-black text-slate-950">Phần II</h2>
+          <div className="space-y-3">
+            {groups.map((group) => (
+              <div key={group.id} className="rounded-xl border border-slate-200 bg-white p-3 shadow-sm">
+                <p className="mb-2 text-sm font-bold">Câu {group.question_no}</p>
+                <div className="grid gap-2">
+                  {questions
+                    .filter((q) => q.parent_question_id === group.id)
+                    .map((item) => (
+                      <div key={item.id} className="grid grid-cols-[32px_1fr_1fr] items-center gap-2">
+                        <span className="font-semibold">{item.sub_label})</span>
+                        <TruthOption checked={answers[item.id] === "true"} label="Đúng" onChange={() => update(item, "true")} name={item.id} />
+                        <TruthOption checked={answers[item.id] === "false"} label="Sai" onChange={() => update(item, "false")} name={item.id} />
+                      </div>
+                    ))}
+                </div>
               </div>
-            </div>
-          ))}
-        </div>
-      </section>
-      <section>
-        <h2 className="mb-3 text-base font-semibold">Phần III</h2>
-        <div className="grid gap-3">
-          {shorts.map((q) => (
-            <label key={q.id} className="block rounded-lg border border-slate-200 bg-white p-2.5 text-sm font-medium shadow-sm">
-              Câu {q.question_no}
-              <Input className="mt-2" value={answers[q.id] ?? ""} onChange={(event) => update(q, event.target.value)} />
-            </label>
-          ))}
-        </div>
-      </section>
+            ))}
+          </div>
+        </section>
+
+        <section>
+          <h2 className="mb-3 text-base font-black text-slate-950">Phần III</h2>
+          <div className="grid gap-3">
+            {shorts.map((q) => (
+              <label key={q.id} className="block rounded-xl border border-slate-200 bg-white p-3 text-sm font-bold shadow-sm">
+                Câu {q.question_no}
+                <Input className="mt-2" value={answers[q.id] ?? ""} onChange={(event) => update(q, event.target.value)} />
+              </label>
+            ))}
+          </div>
+        </section>
       </div>
-      <div className="flex shrink-0 items-center justify-end gap-3 border-t bg-white p-3 shadow-[0_-8px_20px_rgba(15,23,42,0.08)]">
-        <Button variant="secondary" disabled={pending} className="min-w-28">Lưu tạm</Button>
-        <Button type="button" onClick={submit} disabled={pending} className="min-w-32">{pending ? "Đang xử lý..." : "Nộp bài"}</Button>
+
+      <div className="flex shrink-0 items-center justify-end gap-3 border-t border-slate-200 bg-white p-3 shadow-[0_-8px_20px_rgba(15,23,42,0.08)]">
+        <Button variant="secondary" disabled={pending} className="min-w-28">
+          Lưu tạm
+        </Button>
+        <Button type="button" onClick={submit} disabled={pending} className="min-w-32">
+          {pending ? "Đang xử lý..." : "Nộp bài"}
+        </Button>
       </div>
     </div>
+  );
+}
+
+function TruthOption({ checked, label, name, onChange }: { checked: boolean; label: string; name: string; onChange: () => void }) {
+  return (
+    <label
+      className={cn(
+        "rounded-xl border p-2 text-sm font-semibold transition",
+        checked ? "border-teal-600 bg-teal-50 text-teal-800" : "border-slate-200 hover:bg-slate-50"
+      )}
+    >
+      <input type="radio" name={name} checked={checked} onChange={onChange} /> {label}
+    </label>
   );
 }
