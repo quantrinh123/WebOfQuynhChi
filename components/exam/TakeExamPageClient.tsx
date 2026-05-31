@@ -70,7 +70,7 @@ export function TakeExamPageClient({
     }
 
     void pingSession();
-    const timer = window.setInterval(() => void pingSession(), 60_000);
+    const timer = window.setInterval(() => void pingSession(), 120_000);
     return () => window.clearInterval(timer);
   }, [expiryMs]);
 
