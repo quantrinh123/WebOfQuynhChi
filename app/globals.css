@@ -1,0 +1,53 @@
+@tailwind base;
+@tailwind components;
+@tailwind utilities;
+
+:root {
+  --background: 210 32% 97%;
+  --foreground: 221 39% 11%;
+  --border: 214 20% 86%;
+  --primary: 188 82% 30%;
+  --primary-foreground: 0 0% 100%;
+}
+
+* {
+  box-sizing: border-box;
+}
+
+body {
+  background: hsl(var(--background));
+  color: hsl(var(--foreground));
+}
+
+input,
+select,
+textarea {
+  color: hsl(var(--foreground));
+}
+
+table {
+  border-collapse: separate;
+  border-spacing: 0;
+}
+
+::selection {
+  background: rgba(15, 118, 110, 0.16);
+}
+
+@layer components {
+  .surface {
+    @apply rounded-xl border border-slate-200 bg-white shadow-sm shadow-slate-200/70;
+  }
+
+  .table-shell {
+    @apply overflow-hidden rounded-xl border border-slate-200 bg-white shadow-sm shadow-slate-200/70;
+  }
+
+  .table-head {
+    @apply bg-slate-50 text-xs font-bold uppercase tracking-wide text-slate-500;
+  }
+
+  .muted-card {
+    @apply rounded-xl border border-slate-200 bg-slate-50/70;
+  }
+}
