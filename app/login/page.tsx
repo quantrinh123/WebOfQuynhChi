@@ -11,7 +11,7 @@ export default async function LoginPage() {
   if (profile?.role === "student") redirect("/student/exams");
 
   return (
-    <main className="grid min-h-screen place-items-center bg-slate-100 p-4">
+    <main className="grid min-h-screen place-items-center bg-[#eef4f8] p-4">
       <LoginForm />
     </main>
   );

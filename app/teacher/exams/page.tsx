@@ -38,14 +38,14 @@ export default async function TeacherExamsPage() {
 
       <div className="grid gap-4">
         {exams?.map((exam) => (
-          <article key={exam.id} className="surface overflow-hidden transition hover:border-teal-200 hover:shadow-lg">
-            <div className="grid gap-4 p-5 lg:grid-cols-[minmax(0,1fr)_auto] lg:items-center">
+          <article key={exam.id} className="surface overflow-hidden transition hover:-translate-y-0.5 hover:border-teal-200 hover:shadow-[0_18px_42px_rgba(15,23,42,0.09)]">
+            <div className="grid gap-5 p-5 lg:grid-cols-[minmax(0,1fr)_auto] lg:items-center">
               <div className="min-w-0">
                 <div className="mb-3 flex flex-wrap items-center gap-3">
-                  <h2 className="truncate text-lg font-bold text-slate-950">{exam.title}</h2>
+                  <h2 className="truncate text-xl font-black text-slate-950">{exam.title}</h2>
                   <ExamStatusBadge status={exam.status} />
                 </div>
-                <div className="flex flex-wrap gap-x-5 gap-y-2 text-sm text-slate-600">
+                <div className="flex flex-wrap gap-x-5 gap-y-2 text-sm font-medium text-slate-600">
                   <span className="inline-flex items-center gap-1.5">
                     <Clock3 size={16} className="text-slate-400" />
                     {exam.duration_minutes} phút
@@ -60,41 +60,33 @@ export default async function TeacherExamsPage() {
 
               <div className="flex flex-wrap gap-2 lg:justify-end">
                 <Link href={`/teacher/exams/${exam.id}/answer-key`}>
-                  <Button variant="secondary" className="h-9 gap-2 px-3">
+                  <Button variant="secondary" className="h-10 gap-2 px-3">
                     <FilePenLine size={16} />
                     Đáp án
                   </Button>
                 </Link>
                 <Link href={`/teacher/exams/${exam.id}/assign`}>
-                  <Button variant="secondary" className="h-9 gap-2 px-3">
+                  <Button variant="secondary" className="h-10 gap-2 px-3">
                     <Send size={16} />
                     Giao đề
                   </Button>
                 </Link>
                 <Link href={`/teacher/exams/${exam.id}/results`}>
-                  <Button className="h-9 gap-2 px-3">
+                  <Button className="h-10 gap-2 px-3">
                     <BarChart3 size={16} />
                     Kết quả
                   </Button>
                 </Link>
                 {exam.status !== "closed" ? (
                   <form action={closeExam.bind(null, exam.id)}>
-                    <ConfirmSubmitButton
-                      variant="secondary"
-                      className="h-9 gap-2 px-3"
-                      message={`Đóng đề ${exam.title}? Học sinh sẽ không thể tiếp tục làm đề này.`}
-                    >
+                    <ConfirmSubmitButton variant="secondary" className="h-10 gap-2 px-3" message={`Đóng đề ${exam.title}? Học sinh sẽ không thể tiếp tục làm đề này.`}>
                       <Lock size={16} />
                       Đóng
                     </ConfirmSubmitButton>
                   </form>
                 ) : null}
                 <form action={deleteExam.bind(null, exam.id)}>
-                  <ConfirmSubmitButton
-                    variant="danger"
-                    className="h-9 gap-2 px-3"
-                    message={`Xoá đề ${exam.title}? Toàn bộ câu hỏi, giao đề, bài nộp và file PDF liên quan sẽ bị xoá.`}
-                  >
+                  <ConfirmSubmitButton variant="danger" className="h-10 gap-2 px-3" message={`Xoá đề ${exam.title}? Toàn bộ câu hỏi, giao đề, bài nộp và file PDF liên quan sẽ bị xoá.`}>
                     <Trash2 size={16} />
                     Xoá
                   </ConfirmSubmitButton>

@@ -47,21 +47,23 @@ export function LoginForm() {
   }
 
   return (
-    <form onSubmit={handleSubmit} className="w-full max-w-md rounded-xl border border-slate-200 bg-white p-7 shadow-lg shadow-slate-200/70">
-      <div className="mb-6">
-        <p className="text-sm font-bold uppercase tracking-wide text-teal-700">Luyện thi Toán THPT</p>
-        <h1 className="mt-2 text-3xl font-bold text-slate-950">Đăng nhập</h1>
+    <form onSubmit={handleSubmit} className="w-full max-w-md rounded-3xl border border-white/80 bg-white/95 p-8 shadow-[0_24px_60px_rgba(15,23,42,0.12)] backdrop-blur">
+      <div className="mb-7">
+        <div className="mb-4 h-1.5 w-14 rounded-full bg-teal-700" />
+        <p className="text-sm font-black uppercase tracking-[0.16em] text-teal-700">Luyện thi Toán THPT</p>
+        <h1 className="mt-2 text-4xl font-black text-slate-950">Đăng nhập</h1>
+        <p className="mt-2 text-sm leading-6 text-slate-600">Vào hệ thống để quản lý đề thi hoặc làm bài được giao.</p>
       </div>
-      <label className="mb-4 block text-sm font-semibold text-slate-700">
+      <label className="mb-4 block text-sm font-bold text-slate-700">
         Email
-        <Input className="mt-1" name="email" type="email" required autoComplete="email" />
+        <Input className="mt-1.5" name="email" type="email" required autoComplete="email" />
       </label>
-      <label className="mb-4 block text-sm font-semibold text-slate-700">
+      <label className="mb-5 block text-sm font-bold text-slate-700">
         Mật khẩu
-        <Input className="mt-1" name="password" type="password" required autoComplete="current-password" />
+        <Input className="mt-1.5" name="password" type="password" required autoComplete="current-password" />
       </label>
-      {error ? <p className="mb-4 rounded-lg bg-rose-50 p-3 text-sm text-rose-700">{error}</p> : null}
-      <Button className="w-full gap-2" disabled={pending}>
+      {error ? <p className="mb-4 rounded-xl bg-rose-50 p-3 text-sm font-medium text-rose-700 ring-1 ring-rose-100">{error}</p> : null}
+      <Button className="w-full gap-2 py-3" disabled={pending}>
         <LogIn size={18} />
         {pending ? "Đang đăng nhập..." : "Đăng nhập"}
       </Button>

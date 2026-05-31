@@ -3,10 +3,10 @@
 @tailwind utilities;
 
 :root {
-  --background: 210 32% 97%;
-  --foreground: 221 39% 11%;
-  --border: 214 20% 86%;
-  --primary: 188 82% 30%;
+  --background: 204 38% 96%;
+  --foreground: 222 47% 11%;
+  --border: 214 28% 86%;
+  --primary: 187 82% 30%;
   --primary-foreground: 0 0% 100%;
 }
 
@@ -14,9 +14,21 @@
   box-sizing: border-box;
 }
 
+html {
+  min-width: 320px;
+}
+
 body {
-  background: hsl(var(--background));
+  background: #eef4f8;
   color: hsl(var(--foreground));
+  font-feature-settings: "cv02", "cv03", "cv04", "cv11";
+}
+
+input,
+select,
+textarea,
+button {
+  font: inherit;
 }
 
 input,
@@ -31,16 +43,20 @@ table {
 }
 
 ::selection {
-  background: rgba(15, 118, 110, 0.16);
+  background: rgba(15, 118, 110, 0.18);
 }
 
 @layer components {
   .surface {
-    @apply rounded-xl border border-slate-200 bg-white shadow-sm shadow-slate-200/70;
+    @apply rounded-2xl border border-slate-200/80 bg-white shadow-[0_12px_34px_rgba(15,23,42,0.06)];
+  }
+
+  .surface-soft {
+    @apply rounded-2xl border border-white/80 bg-white/75 shadow-[0_10px_28px_rgba(15,23,42,0.05)] backdrop-blur;
   }
 
   .table-shell {
-    @apply overflow-hidden rounded-xl border border-slate-200 bg-white shadow-sm shadow-slate-200/70;
+    @apply overflow-hidden rounded-2xl border border-slate-200/80 bg-white shadow-[0_12px_34px_rgba(15,23,42,0.06)];
   }
 
   .table-head {
@@ -48,6 +64,6 @@ table {
   }
 
   .muted-card {
-    @apply rounded-xl border border-slate-200 bg-slate-50/70;
+    @apply rounded-2xl border border-slate-200/80 bg-slate-50/80;
   }
 }

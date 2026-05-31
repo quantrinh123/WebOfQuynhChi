@@ -34,7 +34,7 @@ export default async function TeacherDashboardPage() {
     <>
       <PageHeader
         title="Tổng quan"
-        description={`Xin chào, ${teacher.full_name}. Theo dõi lớp học, đề thi và kết quả làm bài tại đây.`}
+        description={`Xin chào, ${teacher.full_name}. Theo dõi nhanh lớp học, đề thi và tình hình làm bài.`}
         action={
           <Link href="/teacher/exams/create">
             <Button className="gap-2">
@@ -45,34 +45,37 @@ export default async function TeacherDashboardPage() {
         }
       />
 
-      <div className="mb-6 grid gap-4 sm:grid-cols-2 xl:grid-cols-4">
+      <div className="mb-7 grid gap-4 sm:grid-cols-2 xl:grid-cols-4">
         {stats.map((stat) => (
-          <div key={stat.label} className="surface p-5 transition hover:shadow-md">
-            <div className="flex items-start justify-between gap-3">
+          <div key={stat.label} className="surface group p-5 transition hover:-translate-y-0.5 hover:shadow-[0_18px_42px_rgba(15,23,42,0.09)]">
+            <div className="flex items-start justify-between gap-4">
               <div>
-                <p className="text-sm font-medium text-slate-600">{stat.label}</p>
-                <p className="mt-3 text-3xl font-bold text-slate-950">{stat.value}</p>
+                <p className="text-sm font-semibold text-slate-500">{stat.label}</p>
+                <p className="mt-3 text-4xl font-black text-slate-950">{stat.value}</p>
               </div>
-              <div className={`flex h-11 w-11 items-center justify-center rounded-xl ${stat.tone}`}>
-                <stat.icon size={22} />
+              <div className={`flex h-12 w-12 items-center justify-center rounded-2xl ${stat.tone}`}>
+                <stat.icon size={23} />
               </div>
             </div>
           </div>
         ))}
       </div>
 
-      <div className="surface overflow-hidden">
-        <div className="flex items-center justify-between border-b border-slate-200 p-4">
-          <h2 className="font-semibold">Bài thi gần đây</h2>
-          <Link href="/teacher/exams" className="text-sm font-semibold text-teal-700 hover:text-teal-800">
+      <section className="surface overflow-hidden">
+        <div className="flex items-center justify-between border-b border-slate-200/80 p-5">
+          <div>
+            <h2 className="text-lg font-black text-slate-950">Bài thi gần đây</h2>
+            <p className="mt-1 text-sm text-slate-500">Mở nhanh trang kết quả của từng đề.</p>
+          </div>
+          <Link href="/teacher/exams" className="text-sm font-bold text-teal-700 hover:text-teal-900">
             Xem tất cả
           </Link>
         </div>
         <div className="divide-y divide-slate-100">
           {exams?.map((exam) => (
-            <Link key={exam.id} href={`/teacher/exams/${exam.id}/results`} className="flex items-center justify-between gap-3 p-4 transition hover:bg-slate-50">
+            <Link key={exam.id} href={`/teacher/exams/${exam.id}/results`} className="flex items-center justify-between gap-3 p-5 transition hover:bg-slate-50">
               <div className="min-w-0">
-                <p className="truncate font-semibold text-slate-950">{exam.title}</p>
+                <p className="truncate font-bold text-slate-950">{exam.title}</p>
                 <p className="mt-1 text-sm text-slate-500">{formatDateTime(exam.created_at)}</p>
               </div>
               <ExamStatusBadge status={exam.status} />
@@ -80,7 +83,7 @@ export default async function TeacherDashboardPage() {
           ))}
           {!exams?.length ? <div className="p-6 text-sm text-slate-600">Chưa có đề thi nào.</div> : null}
         </div>
-      </div>
+      </section>
     </>
   );
 }
