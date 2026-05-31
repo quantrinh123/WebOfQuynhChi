@@ -58,7 +58,7 @@ export function TakeExamPageClient({
   }, [secondsLeft]);
 
   return (
-    <div className="min-h-screen bg-[#eef4f8]">
+    <div className="flex h-screen min-h-0 flex-col overflow-hidden bg-[#eef4f8]">
       <header className="sticky top-0 z-30 border-b border-slate-200/80 bg-white/95 shadow-sm backdrop-blur">
         <div className="flex items-center justify-between gap-3 px-2 py-1.5 sm:px-3">
           <div className="min-w-0">
@@ -69,7 +69,7 @@ export function TakeExamPageClient({
         </div>
       </header>
 
-      <main className="px-1.5 py-1.5 sm:px-2">
+      <main className="min-h-0 flex-1 overflow-hidden px-1.5 py-1.5 sm:px-2">
         <TakeExamWorkspace
           fileUrl={fileUrl}
           submissionId={submissionId}

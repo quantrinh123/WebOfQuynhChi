@@ -46,8 +46,8 @@ export function TakeExamWorkspace({
   const current = modes.find((item) => item.value === mode) ?? modes[0];
 
   return (
-    <div className="space-y-1.5">
-      <div className="flex flex-wrap items-center justify-between gap-2 rounded-lg border border-slate-200 bg-white px-1.5 py-1 shadow-sm">
+    <div className="flex h-full min-h-0 flex-col gap-1.5">
+      <div className="shrink-0 flex flex-wrap items-center justify-between gap-2 rounded-lg border border-slate-200 bg-white px-1.5 py-1 shadow-sm">
         <div className="flex flex-wrap gap-1">
           {modes.map((item) => {
             const Icon = item.icon;
@@ -71,7 +71,7 @@ export function TakeExamWorkspace({
         <span className="hidden pr-1 text-xs font-semibold text-slate-500 md:inline">Bố cục</span>
       </div>
 
-      <div className={cn("h-[calc(100vh-83px)] min-h-[620px] overflow-hidden lg:grid lg:gap-2", current.grid)}>
+      <div className={cn("min-h-0 flex-1 overflow-hidden lg:grid lg:gap-2", current.grid)}>
         <section className="hidden min-h-0 overflow-hidden rounded-lg border border-slate-200 bg-white shadow-sm lg:block">
           <PdfViewer fileUrl={fileUrl} height="100%" className="h-full w-full border-0 bg-white" />
         </section>
