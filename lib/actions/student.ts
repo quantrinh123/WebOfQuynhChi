@@ -1,7 +1,6 @@
 "use server";
 
 import { redirect } from "next/navigation";
-import { revalidatePath } from "next/cache";
 import { requireStudent } from "@/lib/auth";
 import { gradeSubmission } from "@/lib/grading";
 import { createServiceClient } from "@/lib/supabase/server";
@@ -62,7 +61,6 @@ export async function saveAnswer(submissionId: string, questionId: string, paylo
     },
     { onConflict: "submission_id,question_id" }
   );
-  revalidatePath(`/student/exams`);
 }
 
 export async function submitExam(submissionId: string, answers: Array<{ questionId: string; selected_option?: string; boolean_answer?: boolean; answer_text?: string }>) {

@@ -1,7 +1,7 @@
 "use client";
 
 import { useEffect, useMemo, useRef, useState, useTransition } from "react";
-import { saveAnswer, submitExam } from "@/lib/actions/student";
+import { submitExam } from "@/lib/actions/student";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { cn } from "@/lib/utils/format";
@@ -19,6 +19,11 @@ type ExistingAnswer = {
   selected_option: string | null;
   boolean_answer: boolean | null;
   answer_text: string | null;
+};
+
+type SaveAnswerResponse = {
+  expired?: boolean;
+  examId?: string;
 };
 
 export function AnswerSheet({
@@ -42,6 +47,7 @@ export function AnswerSheet({
   }, [existingAnswers]);
 
   const [answers, setAnswers] = useState<Record<string, string>>(initial);
+  const [savingCount, setSavingCount] = useState(0);
   const [pending, startTransition] = useTransition();
   const prevAutoSubmit = useRef(0);
   const singles = questions.filter((q) => q.question_type === "single_choice");
@@ -49,14 +55,35 @@ export function AnswerSheet({
   const shorts = questions.filter((q) => q.question_type === "short_answer");
   const answerable = questions.filter((q) => q.question_type !== "true_false_group");
   const answeredCount = answerable.filter((q) => answers[q.id]).length;
+  const isBusy = pending || savingCount > 0;
 
   function update(question: Question, value: string) {
     setAnswers((prev) => ({ ...prev, [question.id]: value }));
-    startTransition(() => {
-      if (question.question_type === "single_choice") void saveAnswer(submissionId, question.id, { selected_option: value });
-      if (question.question_type === "true_false_item") void saveAnswer(submissionId, question.id, { boolean_answer: value === "true" });
-      if (question.question_type === "short_answer") void saveAnswer(submissionId, question.id, { answer_text: value });
-    });
+    void saveAnswerInBackground(question, value);
+  }
+
+  async function saveAnswerInBackground(question: Question, value: string) {
+    setSavingCount((count) => count + 1);
+    try {
+      const response = await fetch("/api/student/answers", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          submissionId,
+          questionId: question.id,
+          selected_option: question.question_type === "single_choice" ? value : null,
+          boolean_answer: question.question_type === "true_false_item" ? value === "true" : null,
+          answer_text: question.question_type === "short_answer" ? value : null
+        })
+      });
+
+      const result = (await response.json().catch(() => null)) as SaveAnswerResponse | null;
+      if (result?.expired && result.examId) {
+        window.location.href = `/student/exams/${result.examId}/result`;
+      }
+    } finally {
+      setSavingCount((count) => Math.max(0, count - 1));
+    }
   }
 
   function submit(confirmMissing = true) {
@@ -92,7 +119,9 @@ export function AnswerSheet({
               Đã làm {answeredCount}/{answerable.length} câu
             </p>
           </div>
-          <span className="rounded-full bg-teal-50 px-2 py-0.5 text-xs font-bold text-teal-800 ring-1 ring-teal-100">{pending ? "Đang lưu" : "Sẵn sàng"}</span>
+          <span className="rounded-full bg-teal-50 px-2 py-0.5 text-xs font-bold text-teal-800 ring-1 ring-teal-100">
+            {isBusy ? "Đang lưu" : "Sẵn sàng"}
+          </span>
         </div>
       </div>
 
@@ -144,7 +173,7 @@ export function AnswerSheet({
           {answeredCount}/{answerable.length} câu
         </p>
         <div className="ml-auto flex gap-2">
-          <Button variant="secondary" disabled={pending} className="min-h-9 min-w-20 rounded-lg px-3 py-1.5">
+          <Button variant="secondary" disabled={isBusy} className="min-h-9 min-w-20 rounded-lg px-3 py-1.5">
             Lưu
           </Button>
           <Button type="button" onClick={() => submit()} disabled={pending} className="min-h-9 min-w-28 rounded-lg px-3 py-1.5">
