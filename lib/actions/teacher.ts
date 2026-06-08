@@ -118,6 +118,9 @@ async function assertTeacherOwnsClass(supabase: ReturnType<typeof createServiceC
 
 export async function generateMathThpt2025Questions(examId: string) {
   const supabase = createServiceClient();
+  await supabase.from("exam_questions").delete().eq("exam_id", examId);
+  await supabase.from("exam_sections").delete().eq("exam_id", examId);
+
   const sections = [
     { exam_id: examId, section_type: "single_choice", title: "Phần I. Trắc nghiệm", order_no: 1 },
     { exam_id: examId, section_type: "true_false", title: "Phần II. Đúng/Sai", order_no: 2 },
@@ -154,41 +157,81 @@ export async function generateMathThpt2025Questions(examId: string) {
   if (items.length) await supabase.from("exam_questions").insert(items);
 }
 
-export async function createExamWithPdfs(formData: FormData) {
+type ExamUpload = {
+  path: string;
+  token: string;
+};
+
+export async function prepareExamCreation(formData: FormData) {
   const teacher = await requireTeacher();
   const supabase = createServiceClient();
+  const examId = String(formData.get("exam_id") ?? "").trim() || crypto.randomUUID();
   const { data: exam, error } = await supabase
     .from("exams")
-    .insert({
-      teacher_id: teacher.id,
-      title: String(formData.get("title") ?? ""),
-      grade: String(formData.get("grade") ?? "12"),
-      duration_minutes: Number(formData.get("duration_minutes") ?? 90),
-      total_score: Number(formData.get("total_score") ?? 10),
-      exam_format: "math_thpt_2025",
-      show_score_after_submit: formData.get("show_score_after_submit") === "on",
-      show_answer_after_submit: formData.get("show_answer_after_submit") === "on"
-    })
+    .upsert(
+      {
+        id: examId,
+        teacher_id: teacher.id,
+        title: String(formData.get("title") ?? ""),
+        grade: String(formData.get("grade") ?? "12"),
+        duration_minutes: Number(formData.get("duration_minutes") ?? 90),
+        total_score: Number(formData.get("total_score") ?? 10),
+        exam_format: "math_thpt_2025",
+        show_score_after_submit: formData.get("show_score_after_submit") === "on",
+        show_answer_after_submit: formData.get("show_answer_after_submit") === "on",
+        status: "draft",
+        question_pdf_path: null,
+        answer_pdf_path: null
+      },
+      { onConflict: "id" }
+    )
     .select()
     .single();
   if (error || !exam) throw error ?? new Error("Không tạo được đề thi");
 
-  const questionFile = formData.get("question_pdf") as File | null;
-  const answerFile = formData.get("answer_pdf") as File | null;
-  const updates: Record<string, string> = {};
-  if (questionFile?.size) {
-    const path = `${teacher.id}/${exam.id}/question.pdf`;
-    await supabase.storage.from("exam-pdfs").upload(path, questionFile, { upsert: true, contentType: "application/pdf" });
-    updates.question_pdf_path = path;
-  }
-  if (answerFile?.size) {
-    const path = `${teacher.id}/${exam.id}/answer.pdf`;
-    await supabase.storage.from("exam-pdfs").upload(path, answerFile, { upsert: true, contentType: "application/pdf" });
-    updates.answer_pdf_path = path;
-  }
-  if (Object.keys(updates).length) await supabase.from("exams").update(updates).eq("id", exam.id);
-  await generateMathThpt2025Questions(exam.id);
-  redirect(`/teacher/exams/${exam.id}/answer-key`);
+  const questionUpload = await supabase.storage.from("exam-pdfs").createSignedUploadUrl(`${teacher.id}/${examId}/question.pdf`, {
+    upsert: true
+  });
+  if (questionUpload.error || !questionUpload.data) throw questionUpload.error ?? new Error("Không tạo được link upload PDF đề thi.");
+
+  const answerUpload = await supabase.storage.from("exam-pdfs").createSignedUploadUrl(`${teacher.id}/${examId}/answer.pdf`, {
+    upsert: true
+  });
+  if (answerUpload.error || !answerUpload.data) throw answerUpload.error ?? new Error("Không tạo được link upload PDF đáp án.");
+
+  return {
+    examId,
+    questionUpload: {
+      path: questionUpload.data.path,
+      token: questionUpload.data.token
+    } satisfies ExamUpload,
+    answerUpload: {
+      path: answerUpload.data.path,
+      token: answerUpload.data.token
+    } satisfies ExamUpload
+  };
+}
+
+export async function finalizeExamCreation(
+  examId: string,
+  payload: { questionPdfPath: string; answerPdfPath?: string | null }
+) {
+  const teacher = await requireTeacher();
+  const supabase = createServiceClient();
+  const { error } = await supabase
+    .from("exams")
+    .update({
+      question_pdf_path: payload.questionPdfPath,
+      answer_pdf_path: payload.answerPdfPath ?? null
+    })
+    .eq("id", examId)
+    .eq("teacher_id", teacher.id);
+  if (error) throw error;
+
+  await generateMathThpt2025Questions(examId);
+  revalidatePath("/teacher/exams");
+  revalidatePath(`/teacher/exams/${examId}/answer-key`);
+  return { redirectTo: `/teacher/exams/${examId}/answer-key` };
 }
 
 export async function updateExamInfo(examId: string, formData: FormData) {
