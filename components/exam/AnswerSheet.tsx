@@ -125,7 +125,7 @@ export function AnswerSheet({
         </div>
       </div>
 
-      <div className="min-h-0 flex-1 space-y-2 overflow-y-auto p-2 pb-3">
+      <div className="min-h-0 flex-1 space-y-2 overflow-y-auto overscroll-y-contain p-2 pb-3 [-webkit-overflow-scrolling:touch]">
         <SectionTitle title="Phần I" subtitle="Trắc nghiệm" />
         <div className="grid gap-1.5">
           {singles.map((q) => (
