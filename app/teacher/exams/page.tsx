@@ -19,7 +19,7 @@ type TeacherExamSearchParams = {
 
 const PAGE_SIZE = 8;
 
-export default async function TeacherExamsPage({ searchParams }: { searchParams?: Promise<TeacherExamSearchParams> | TeacherExamSearchParams }) {
+export default async function TeacherExamsPage({ searchParams }: { searchParams?: Promise<TeacherExamSearchParams> }) {
   const teacher = await requireTeacher();
   const supabase = createServiceClient();
   const resolvedSearchParams = (await searchParams) ?? {};
