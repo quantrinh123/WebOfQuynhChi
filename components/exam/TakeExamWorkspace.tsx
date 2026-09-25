@@ -43,11 +43,33 @@ export function TakeExamWorkspace({
   autoSubmitTrigger?: number;
 }) {
   const [mode, setMode] = useState<LayoutMode>("question");
+  const [mobilePane, setMobilePane] = useState<"question" | "answer">("question");
   const current = modes.find((item) => item.value === mode) ?? modes[0];
 
   return (
     <div className="flex min-h-0 flex-1 flex-col gap-1.5">
-      <div className="shrink-0 flex flex-wrap items-center justify-between gap-2 rounded-lg border border-slate-200 bg-white px-1.5 py-1 shadow-sm">
+      {/* Điện thoại: chuyển qua lại giữa đề và phiếu trả lời, mỗi bên chiếm trọn màn hình. */}
+      <div className="grid shrink-0 grid-cols-2 gap-1 rounded-lg border border-slate-200 bg-white p-1 shadow-sm lg:hidden">
+        {[
+          { value: "question" as const, label: "Đề thi", icon: FileText },
+          { value: "answer" as const, label: "Phiếu trả lời", icon: ListChecks }
+        ].map((item) => (
+          <button
+            key={item.value}
+            type="button"
+            onClick={() => setMobilePane(item.value)}
+            className={cn(
+              "inline-flex h-9 items-center justify-center gap-1.5 rounded-md text-sm font-bold transition",
+              mobilePane === item.value ? "bg-teal-700 text-white shadow-sm" : "text-slate-600 hover:bg-slate-100"
+            )}
+          >
+            <item.icon size={16} />
+            {item.label}
+          </button>
+        ))}
+      </div>
+
+      <div className="hidden shrink-0 items-center justify-between gap-2 rounded-lg border border-slate-200 bg-white px-1.5 py-1 shadow-sm lg:flex">
         <div className="flex flex-wrap gap-1">
           {modes.map((item) => {
             const Icon = item.icon;
@@ -68,24 +90,25 @@ export function TakeExamWorkspace({
             );
           })}
         </div>
-        <span className="hidden pr-1 text-xs font-semibold text-slate-500 md:inline">Bố cục</span>
+        <span className="pr-1 text-xs font-semibold text-slate-500">Bố cục</span>
       </div>
 
-      <div className={cn("min-h-0 flex-1 lg:grid lg:gap-2", current.grid)}>
-        <section className="hidden min-h-0 overflow-hidden rounded-lg border border-slate-200 bg-white shadow-sm lg:flex">
+      <div className={cn("flex min-h-0 flex-1 flex-col lg:grid lg:gap-2", current.grid)}>
+        <section
+          className={cn(
+            "min-h-0 flex-1 overflow-hidden rounded-lg border border-slate-200 bg-white shadow-sm lg:flex",
+            mobilePane === "question" ? "flex" : "hidden"
+          )}
+        >
           <PdfViewer fileUrl={fileUrl} height="100%" className="h-full w-full border-0 bg-white" />
         </section>
 
-        <section className="lg:hidden">
-          <details className="surface mb-2 p-2">
-            <summary className="font-semibold">Đề thi PDF</summary>
-            <div className="mt-2">
-              <PdfViewer fileUrl={fileUrl} height={520} />
-            </div>
-          </details>
-        </section>
-
-        <section className="flex min-h-[420px] min-h-0 flex-1 flex-col overflow-hidden rounded-lg border border-slate-200 bg-slate-50 shadow-sm">
+        <section
+          className={cn(
+            "min-h-0 flex-1 flex-col overflow-hidden rounded-lg border border-slate-200 bg-slate-50 shadow-sm lg:flex",
+            mobilePane === "answer" ? "flex" : "hidden"
+          )}
+        >
           <AnswerSheet submissionId={submissionId} questions={questions} existingAnswers={existingAnswers} autoSubmitTrigger={autoSubmitTrigger} />
         </section>
       </div>

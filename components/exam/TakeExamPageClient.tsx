@@ -73,8 +73,8 @@ export function TakeExamPageClient({
   }, [expiryMs]);
 
   return (
-    <div className="flex min-h-[100dvh] flex-col bg-[#eef4f8]">
-      <header className="sticky top-0 z-30 border-b border-slate-200/80 bg-white/95 shadow-sm backdrop-blur">
+    <div className="flex h-[100dvh] flex-col overflow-hidden bg-[#eef4f8]">
+      <header className="z-30 shrink-0 border-b border-slate-200/80 bg-white/95 shadow-sm backdrop-blur">
         <div className="flex items-center justify-between gap-3 px-2 py-1.5 sm:px-3">
           <div className="min-w-0">
             <h1 className="truncate text-lg font-black text-slate-950">{title}</h1>
@@ -85,7 +85,7 @@ export function TakeExamPageClient({
         </div>
       </header>
 
-      <main className="min-h-0 flex-1 overflow-y-auto overscroll-y-contain px-1.5 py-1.5 sm:px-2">
+      <main className="flex min-h-0 flex-1 flex-col overflow-hidden px-1.5 py-1.5 sm:px-2">
         <TakeExamWorkspace
           fileUrl={fileUrl}
           submissionId={submissionId}
