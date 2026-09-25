@@ -1,6 +1,6 @@
 "use client";
 
-import { useState } from "react";
+import { useEffect, useState } from "react";
 import Link from "next/link";
 import { useRouter } from "next/navigation";
 import {
@@ -16,6 +16,7 @@ import {
   MapPin,
   PencilLine,
   PlayCircle,
+  Plus,
   RotateCcw,
   Trash2,
   UserX,
@@ -77,6 +78,12 @@ export function ScheduleBoard({
   const [holidayOpen, setHolidayOpen] = useState(false);
   const [flash, setFlash] = useState<ActionResult>(null);
   const [attendanceFor, setAttendanceFor] = useState<SessionEvent | null>(null);
+  const [now, setNow] = useState<number | null>(null);
+  useEffect(() => {
+    setNow(Date.now());
+    const timer = window.setInterval(() => setNow(Date.now()), 60_000);
+    return () => window.clearInterval(timer);
+  }, []);
 
   const eventsByDay = new Map<string, CalendarEvent[]>();
   events.forEach((event) => eventsByDay.set(event.date, [...(eventsByDay.get(event.date) ?? []), event]));
@@ -89,155 +96,215 @@ export function ScheduleBoard({
     setSetupOpen(false);
   };
 
-  return (
-    <div className="grid gap-5">
-      {/* Thanh công cụ */}
-      <div className="flex flex-col gap-3 lg:flex-row lg:items-center lg:justify-between">
-        <div className="flex items-center gap-2">
-          <Link href={prevHref} className="flex h-10 w-10 items-center justify-center rounded-xl border border-slate-200 bg-white text-slate-600 shadow-sm transition hover:bg-slate-50" aria-label="Tháng trước">
-            <ChevronLeft size={18} />
-          </Link>
-          <Link href={nextHref} className="flex h-10 w-10 items-center justify-center rounded-xl border border-slate-200 bg-white text-slate-600 shadow-sm transition hover:bg-slate-50" aria-label="Tháng sau">
-            <ChevronRight size={18} />
-          </Link>
-          <h2 className="ml-1 text-xl font-black text-slate-950">{monthTitle}</h2>
-          <Link href={todayHref} className="ml-2 rounded-xl border border-slate-200 bg-white px-3 py-2 text-xs font-bold text-slate-600 shadow-sm transition hover:bg-slate-50">
-            Hôm nay
-          </Link>
-        </div>
-        <div className="flex flex-wrap items-center gap-2">
-          {filterOptions.length > 1 ? (
-            <Select
-              aria-label="Lọc theo lớp"
-              className="h-10 w-auto min-w-48 py-2"
-              value={filterOptions.find((option) => option.active)?.href ?? filterOptions[0].href}
-              onChange={(event) => router.push(event.target.value)}
-            >
-              {filterOptions.map((option) => (
-                <option key={option.href} value={option.href}>
-                  {option.label}
-                </option>
-              ))}
-            </Select>
-          ) : null}
-          {isTeacher ? (
-            <>
-              <button type="button" onClick={() => setHolidayOpen(true)} className="inline-flex h-10 items-center gap-2 rounded-xl border border-amber-200 bg-amber-50 px-3.5 text-sm font-bold text-amber-800 transition hover:bg-amber-100">
-                <CalendarRange size={16} />
-                Ngày nghỉ
-              </button>
-              <button type="button" onClick={() => setSetupOpen(true)} className="inline-flex h-10 items-center gap-2 rounded-xl border border-teal-200 bg-teal-50 px-3.5 text-sm font-bold text-teal-800 transition hover:bg-teal-100">
-                <AlarmClock size={16} />
-                Xếp lịch cố định
-              </button>
-              <button
-                type="button"
-                onClick={() => setForm({ date: today })}
-                className="inline-flex h-10 items-center gap-2 rounded-xl bg-gradient-to-r from-teal-600 to-cyan-600 px-3.5 text-sm font-bold text-white shadow-[0_8px_20px_-8px_rgba(13,148,136,0.7)]"
-              >
-                <CalendarPlus size={16} />
-                Thêm buổi
-              </button>
-            </>
-          ) : null}
-        </div>
-      </div>
+  const todayEvents = eventsByDay.get(today) ?? [];
+  const upcoming = events.filter((event) => event.date > today && event.occurrence.status === "scheduled").slice(0, 5);
+  const monthCountByClass = new Map<string, number>();
+  events.forEach((event) => {
+    if (inMonth(event.date) && event.occurrence.status === "scheduled") monthCountByClass.set(event.occurrence.classId, (monthCountByClass.get(event.occurrence.classId) ?? 0) + 1);
+  });
+  const canOpenDay = (date: string) => isTeacher || Boolean(eventsByDay.get(date)?.length);
 
-      {/* Lưới tháng (máy tính) */}
-      <div className="surface hidden overflow-hidden p-3 md:block">
-        <div className="grid grid-cols-7 gap-2 pb-2">
-          {WEEKDAY_SHORT.map((label) => (
-            <div key={label} className="text-center text-xs font-bold uppercase tracking-wider text-slate-400">
-              {label}
+  return (
+    <div className="grid gap-6 xl:grid-cols-[minmax(0,1fr)_320px]">
+      <section className="surface min-w-0 overflow-hidden">
+        {/* Đầu thẻ: tháng + điều hướng + thao tác */}
+        <div className="flex flex-col gap-4 border-b border-slate-100 p-4 sm:p-5 lg:flex-row lg:items-center lg:justify-between">
+          <div className="flex items-center gap-4">
+            <div>
+              <h2 className="text-2xl font-black tracking-tight text-slate-950">{monthTitle}</h2>
+              <p className="text-xs font-semibold text-slate-500">
+                {summary.sessions} buổi · {summary.classes} lớp
+              </p>
             </div>
-          ))}
-        </div>
-        <div className="grid grid-cols-7 gap-2">
-          {days.map((date) => {
-            const dayEvents = eventsByDay.get(date) ?? [];
-            const holiday = holidayByDay.get(date);
-            const isToday = date === today;
-            return (
-              <div
-                key={date}
-                role={isTeacher || dayEvents.length ? "button" : undefined}
-                tabIndex={isTeacher || dayEvents.length ? 0 : undefined}
-                onClick={() => (isTeacher || dayEvents.length) && setOpenDay(date)}
-                onKeyDown={(event) => event.key === "Enter" && (isTeacher || dayEvents.length) && setOpenDay(date)}
-                className={cn(
-                  "group flex min-h-[124px] flex-col gap-1 rounded-2xl border p-2 text-left transition",
-                  holiday ? "border-amber-200 bg-amber-50" : inMonth(date) ? "border-slate-200/80 bg-white" : "border-slate-100 bg-slate-50/70",
-                  isToday && "border-teal-500 ring-2 ring-teal-500/20",
-                  (isTeacher || dayEvents.length) && "cursor-pointer hover:border-teal-300 hover:shadow-sm"
-                )}
+            <div className="flex items-center rounded-xl border border-slate-200 bg-white p-0.5 shadow-sm">
+              <Link href={prevHref} className="flex h-9 w-9 items-center justify-center rounded-lg text-slate-500 transition hover:bg-slate-100 hover:text-slate-900" aria-label="Tháng trước">
+                <ChevronLeft size={18} />
+              </Link>
+              <Link href={todayHref} className="rounded-lg px-3 py-1.5 text-xs font-bold text-slate-700 transition hover:bg-slate-100">
+                Hôm nay
+              </Link>
+              <Link href={nextHref} className="flex h-9 w-9 items-center justify-center rounded-lg text-slate-500 transition hover:bg-slate-100 hover:text-slate-900" aria-label="Tháng sau">
+                <ChevronRight size={18} />
+              </Link>
+            </div>
+          </div>
+          <div className="flex flex-wrap items-center gap-2">
+            {filterOptions.length > 1 ? (
+              <Select
+                aria-label="Lọc theo lớp"
+                className="h-10 w-auto min-w-44 py-2"
+                value={filterOptions.find((option) => option.active)?.href ?? filterOptions[0].href}
+                onChange={(event) => router.push(event.target.value)}
               >
-                <div className="flex items-center gap-1.5 px-0.5">
-                  <span
+                {filterOptions.map((option) => (
+                  <option key={option.href} value={option.href}>
+                    {option.label}
+                  </option>
+                ))}
+              </Select>
+            ) : null}
+            {isTeacher ? (
+              <>
+                <ToolbarButton onClick={() => setHolidayOpen(true)} icon={CalendarRange} label="Ngày nghỉ" />
+                <ToolbarButton onClick={() => setSetupOpen(true)} icon={AlarmClock} label="Lịch cố định" />
+                <button
+                  type="button"
+                  onClick={() => setForm({ date: today })}
+                  className="inline-flex h-10 items-center gap-2 rounded-xl bg-gradient-to-r from-teal-600 to-cyan-600 px-3.5 text-sm font-bold text-white shadow-[0_8px_20px_-8px_rgba(13,148,136,0.7)] transition hover:from-teal-700 hover:to-cyan-700"
+                >
+                  <CalendarPlus size={16} />
+                  Thêm buổi
+                </button>
+              </>
+            ) : null}
+          </div>
+        </div>
+
+        {/* Lưới tháng (máy tính) */}
+        <div className="hidden md:block">
+          <div className="grid grid-cols-7 border-b border-slate-200 bg-slate-50">
+            {WEEKDAY_SHORT.map((label, index) => (
+              <div key={label} className={cn("py-2.5 text-center text-[11px] font-bold uppercase tracking-wider", index >= 5 ? "text-rose-400" : "text-slate-400")}>
+                {label}
+              </div>
+            ))}
+          </div>
+          <div className="grid grid-cols-7">
+            {days.map((date, index) => {
+              const dayEvents = eventsByDay.get(date) ?? [];
+              const holiday = holidayByDay.get(date);
+              const isToday = date === today;
+              const weekend = index % 7 >= 5;
+              const clickable = canOpenDay(date);
+              return (
+                <div
+                  key={date}
+                  role={clickable ? "button" : undefined}
+                  tabIndex={clickable ? 0 : undefined}
+                  onClick={() => clickable && setOpenDay(date)}
+                  onKeyDown={(event) => event.key === "Enter" && clickable && setOpenDay(date)}
+                  className={cn(
+                    "group relative flex min-h-[116px] flex-col gap-1 border-b border-slate-200 p-1.5 text-left transition-colors",
+                    index % 7 !== 6 && "border-r",
+                    index >= days.length - 7 && "border-b-0",
+                    holiday ? "bg-amber-50" : isToday ? "bg-teal-50/70" : !inMonth(date) ? "bg-slate-50" : weekend ? "bg-slate-50/50" : "bg-white",
+                    clickable && "cursor-pointer hover:bg-slate-50"
+                  )}
+                >
+                  <div className="flex items-center gap-1.5">
+                    <span
+                      className={cn(
+                        "flex h-7 min-w-7 items-center justify-center rounded-full px-1 text-[13px] font-bold",
+                        isToday
+                          ? "bg-gradient-to-br from-teal-500 to-cyan-500 text-white shadow-[0_4px_10px_-3px_rgba(13,148,136,0.7)]"
+                          : !inMonth(date)
+                            ? "text-slate-300"
+                            : weekend
+                              ? "text-rose-500"
+                              : "text-slate-700"
+                      )}
+                    >
+                      {Number(date.slice(8))}
+                    </span>
+                    {holiday ? <span className="truncate rounded-md bg-amber-100 px-1.5 py-0.5 text-[10px] font-bold text-amber-800">{holiday.name}</span> : null}
+                    {isTeacher ? (
+                      <span className="ml-auto flex h-6 w-6 items-center justify-center rounded-md text-teal-600 opacity-0 transition group-hover:opacity-100" aria-hidden>
+                        <Plus size={15} />
+                      </span>
+                    ) : null}
+                  </div>
+                  {dayEvents.slice(0, MAX_PER_CELL).map((event) => (
+                    <EventPill key={event.id} event={event} onOpen={setSelected} />
+                  ))}
+                  {dayEvents.length > MAX_PER_CELL ? (
+                    <span className="px-1.5 text-[11px] font-bold text-slate-500 hover:text-teal-700">+{dayEvents.length - MAX_PER_CELL} buổi nữa</span>
+                  ) : null}
+                </div>
+              );
+            })}
+          </div>
+        </div>
+
+        {/* Danh sách theo ngày (điện thoại) */}
+        <div className="divide-y divide-slate-100 md:hidden">
+          {days
+            .filter((date) => inMonth(date) && (eventsByDay.has(date) || holidayByDay.has(date) || date === today))
+            .map((date) => (
+              <div key={date} className={cn("flex gap-3 p-4", date === today && "bg-teal-50/50")}>
+                <div className="w-12 shrink-0 text-center">
+                  <p className={cn("text-[11px] font-bold uppercase", weekdayIndex(date) >= 5 ? "text-rose-400" : "text-slate-400")}>{WEEKDAY_SHORT[weekdayIndex(date)]}</p>
+                  <p
                     className={cn(
-                      "flex h-7 min-w-7 items-center justify-center rounded-full text-sm font-bold",
-                      isToday ? "bg-teal-600 text-white" : inMonth(date) ? "text-slate-700" : "text-slate-400"
+                      "mx-auto mt-0.5 flex h-9 w-9 items-center justify-center rounded-full text-lg font-black",
+                      date === today ? "bg-gradient-to-br from-teal-500 to-cyan-500 text-white" : "text-slate-900"
                     )}
                   >
                     {Number(date.slice(8))}
-                  </span>
-                  {holiday ? <span className="truncate text-xs font-bold text-amber-700">{holiday.name}</span> : null}
+                  </p>
                 </div>
-                {dayEvents.slice(0, MAX_PER_CELL).map((event) => (
-                  <EventPill key={event.id} event={event} onOpen={setSelected} />
-                ))}
-                {dayEvents.length > MAX_PER_CELL ? (
-                  <span className="px-1.5 text-xs font-semibold text-slate-500">+{dayEvents.length - MAX_PER_CELL} buổi nữa</span>
-                ) : null}
+                <div className="grid min-w-0 flex-1 content-start gap-1.5">
+                  {holidayByDay.get(date) ? <span className="w-fit rounded-md bg-amber-100 px-2 py-0.5 text-xs font-bold text-amber-800">{holidayByDay.get(date)!.name}</span> : null}
+                  {(eventsByDay.get(date) ?? []).map((event) => (
+                    <EventPill key={event.id} event={event} onOpen={setSelected} large />
+                  ))}
+                  {!eventsByDay.get(date)?.length && !holidayByDay.get(date) ? <p className="pt-2 text-sm text-slate-400">Không có buổi học</p> : null}
+                </div>
               </div>
-            );
-          })}
+            ))}
         </div>
-      </div>
+      </section>
 
-      {/* Danh sách theo ngày (điện thoại) */}
-      <div className="grid gap-3 md:hidden">
-        {days
-          .filter((date) => inMonth(date) && (eventsByDay.has(date) || holidayByDay.has(date) || date === today))
-          .map((date) => (
-            <div key={date} className={cn("surface p-3", date === today && "border-teal-400")}>
-              <div className="mb-2 flex items-center justify-between">
-                <p className={cn("text-sm font-black", date === today ? "text-teal-700" : "text-slate-900")}>
-                  {WEEKDAY_LABELS[weekdayIndex(date)]}, {formatDay(date)}
-                  {date === today ? " · Hôm nay" : ""}
-                </p>
-                {holidayByDay.get(date) ? <span className="rounded-full bg-amber-100 px-2 py-0.5 text-xs font-bold text-amber-800">{holidayByDay.get(date)!.name}</span> : null}
-              </div>
-              <div className="grid gap-1.5">
-                {(eventsByDay.get(date) ?? []).map((event) => (
-                  <EventPill key={event.id} event={event} onOpen={setSelected} large />
-                ))}
-                {!eventsByDay.get(date)?.length ? <p className="text-xs text-slate-400">Không có buổi học</p> : null}
-              </div>
+      {/* Cột bên: hôm nay, sắp tới, lớp học */}
+      <aside className="grid content-start gap-4">
+        <section className="surface overflow-hidden">
+          <div className="bg-brand relative overflow-hidden px-5 py-4 text-white">
+            <div className="pointer-events-none absolute inset-0 bg-[radial-gradient(circle_at_90%_0%,rgba(255,255,255,0.3),transparent_45%)]" />
+            <p className="relative text-xs font-bold uppercase tracking-wider text-white/80">Hôm nay</p>
+            <p className="relative text-lg font-black">
+              {WEEKDAY_LABELS[weekdayIndex(today)]}, {formatDay(today)}
+            </p>
+          </div>
+          <div className="grid gap-2 p-3">
+            {todayEvents.length ? (
+              todayEvents.map((event) => <AgendaItem key={event.id} event={event} now={now} onOpen={setSelected} />)
+            ) : (
+              <p className="px-2 py-4 text-center text-sm text-slate-500">Hôm nay không có buổi học 🎈</p>
+            )}
+          </div>
+        </section>
+
+        <section className="surface p-4">
+          <h3 className="mb-3 text-sm font-black text-slate-950">Sắp tới</h3>
+          {upcoming.length ? (
+            <div className="grid gap-2">
+              {upcoming.map((event) => (
+                <AgendaItem key={event.id} event={event} now={now} onOpen={setSelected} showDate />
+              ))}
             </div>
-          ))}
-      </div>
+          ) : (
+            <p className="text-sm text-slate-500">Chưa có buổi nào sắp tới trong tháng này.</p>
+          )}
+        </section>
 
-      {/* Chú thích */}
-      <div className="flex flex-col gap-3 text-sm sm:flex-row sm:items-center sm:justify-between">
-        <div className="flex flex-wrap gap-x-5 gap-y-2 text-slate-600">
-          <Legend className="bg-teal-500" label="Đã lên lịch" />
-          <Legend className="bg-slate-400" label="Đã huỷ" />
-          <Legend className="bg-amber-400" label="Ngày nghỉ" />
-        </div>
-        <p className="text-slate-500">
-          {summary.sessions} buổi trong tháng · {summary.classes} lớp
-        </p>
-      </div>
-      {classes.length > 1 ? (
-        <div className="flex flex-wrap gap-2">
-          {classes.map((item) => (
-            <span key={item.id} className="inline-flex items-center gap-1.5 rounded-full bg-white px-2.5 py-1 text-xs font-semibold text-slate-600 ring-1 ring-slate-200">
-              <span className={cn("h-2.5 w-2.5 rounded-full", CLASS_COLORS[item.colorIndex % CLASS_COLORS.length].dot)} />
-              {item.name}
-            </span>
-          ))}
-        </div>
-      ) : null}
+        {classes.length ? (
+          <section className="surface p-4">
+            <h3 className="mb-3 text-sm font-black text-slate-950">Lớp học</h3>
+            <div className="grid gap-2">
+              {classes.map((item) => (
+                <div key={item.id} className="flex items-center gap-2.5 text-sm">
+                  <span className={cn("h-3 w-3 shrink-0 rounded-full", CLASS_COLORS[item.colorIndex % CLASS_COLORS.length].dot)} />
+                  <span className="min-w-0 flex-1 truncate font-semibold text-slate-700">{item.name}</span>
+                  <span className="text-xs font-bold text-slate-400">{monthCountByClass.get(item.id) ?? 0} buổi</span>
+                </div>
+              ))}
+            </div>
+            <div className="mt-4 flex flex-wrap gap-x-4 gap-y-1.5 border-t border-slate-100 pt-3 text-xs text-slate-500">
+              <Legend className="bg-slate-300" label="Đã huỷ" />
+              <Legend className="bg-amber-300" label="Ngày nghỉ" />
+            </div>
+          </section>
+        ) : null}
+      </aside>
 
       {/* Hộp thoại: danh sách buổi trong ngày */}
       <Dialog open={Boolean(openDay)} onClose={() => setOpenDay(null)} title={openDay ? `${WEEKDAY_LABELS[weekdayIndex(openDay)]}, ${formatDay(openDay)}` : ""} description={openDay ? holidayByDay.get(openDay)?.name : undefined}>
@@ -313,6 +380,7 @@ export function ScheduleBoard({
 function EventPill({ event, onOpen, large }: { event: CalendarEvent; onOpen: (event: SessionEvent) => void; large?: boolean }) {
   const cancelled = event.occurrence.status === "cancelled";
   const color = CLASS_COLORS[event.colorIndex % CLASS_COLORS.length];
+  const marked = event.attendance && Object.keys(event.attendance).length;
   return (
     <button
       type="button"
@@ -322,15 +390,67 @@ function EventPill({ event, onOpen, large }: { event: CalendarEvent; onOpen: (ev
       }}
       title={`${event.occurrence.start}–${event.occurrence.end} ${event.occurrence.title || event.className}`}
       className={cn(
-        "flex w-full items-center gap-1 truncate rounded-lg text-left font-semibold transition",
-        large ? "px-3 py-2 text-sm" : "px-1.5 py-1 text-xs",
-        cancelled ? "bg-slate-100 text-slate-400 line-through hover:bg-slate-200" : color.pill
+        "flex w-full items-center gap-1.5 truncate rounded-md border-l-[3px] text-left font-semibold transition",
+        large ? "px-3 py-2 text-sm" : "px-1.5 py-1 text-[11px] leading-tight",
+        cancelled ? "border-l-slate-300 bg-slate-100 text-slate-400 line-through hover:bg-slate-200" : cn(color.soft, color.bar, color.text)
       )}
     >
-      <span className="shrink-0 font-bold">{event.occurrence.start}</span>
+      <span className="shrink-0 font-black tabular-nums">{event.occurrence.start}</span>
       <span className="truncate">{event.occurrence.title || event.className}</span>
-      {event.attendance && Object.keys(event.attendance).length ? <CheckCircle2 size={large ? 14 : 12} className="ml-auto shrink-0 opacity-70" aria-label="Đã điểm danh" /> : null}
       {large ? <span className="ml-auto shrink-0 text-xs font-medium opacity-70">{event.className}</span> : null}
+      {marked ? <CheckCircle2 size={large ? 14 : 11} className={cn("shrink-0 opacity-70", !large && "ml-auto")} aria-label="Đã điểm danh" /> : null}
+    </button>
+  );
+}
+
+function AgendaItem({ event, now, onOpen, showDate }: { event: SessionEvent; now: number | null; onOpen: (event: SessionEvent) => void; showDate?: boolean }) {
+  const occurrence = event.occurrence;
+  const color = CLASS_COLORS[event.colorIndex % CLASS_COLORS.length];
+  const cancelled = occurrence.status === "cancelled";
+  const live = now !== null && !cancelled && now >= occurrenceStart(occurrence) && now <= occurrenceEnd(occurrence);
+  const canJoin = now !== null && !cancelled && occurrence.mode === "online" && occurrence.meetingUrl && now >= occurrenceStart(occurrence) - JOIN_EARLY_MS && now <= occurrenceEnd(occurrence);
+  return (
+    <div className={cn("flex items-center gap-3 rounded-xl border border-slate-100 p-2.5 transition hover:border-slate-200 hover:bg-slate-50", cancelled && "opacity-60")}>
+      <button type="button" onClick={() => onOpen(event)} className="flex min-w-0 flex-1 items-center gap-3 text-left">
+        <span className={cn("w-1 self-stretch rounded-full", cancelled ? "bg-slate-300" : color.dot)} />
+        <span className="min-w-0 flex-1">
+          <span className="flex items-center gap-1.5 text-xs font-bold text-slate-500">
+            {showDate ? `${WEEKDAY_SHORT[weekdayIndex(occurrence.date)]} ${occurrence.date.slice(8)}/${occurrence.date.slice(5, 7)} · ` : ""}
+            {occurrence.start}–{occurrence.end}
+            {live ? <span className="rounded-full bg-rose-100 px-1.5 text-[10px] font-black text-rose-600">ĐANG HỌC</span> : null}
+          </span>
+          <span className={cn("block truncate text-sm font-bold text-slate-900", cancelled && "line-through")}>{occurrence.title || event.className}</span>
+          <span className="flex items-center gap-1 truncate text-xs text-slate-500">
+            {occurrence.mode === "online" ? <Video size={12} /> : <MapPin size={12} />}
+            {event.className}
+            {occurrence.mode === "offline" && occurrence.location ? ` · ${occurrence.location}` : ""}
+          </span>
+        </span>
+      </button>
+      {canJoin ? (
+        <a
+          href={occurrence.meetingUrl!}
+          target="_blank"
+          rel="noopener noreferrer"
+          className="inline-flex h-8 shrink-0 items-center gap-1 rounded-lg bg-gradient-to-r from-teal-600 to-cyan-600 px-2.5 text-xs font-bold text-white"
+        >
+          <ExternalLink size={13} />
+          Vào học
+        </a>
+      ) : null}
+    </div>
+  );
+}
+
+function ToolbarButton({ onClick, icon: Icon, label }: { onClick: () => void; icon: React.ElementType; label: string }) {
+  return (
+    <button
+      type="button"
+      onClick={onClick}
+      className="inline-flex h-10 items-center gap-2 rounded-xl border border-slate-200 bg-white px-3 text-sm font-bold text-slate-700 shadow-sm transition hover:border-teal-200 hover:bg-teal-50/60 hover:text-teal-800"
+    >
+      <Icon size={16} />
+      {label}
     </button>
   );
 }

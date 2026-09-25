@@ -55,14 +55,14 @@ export const WEEKDAY_SHORT = ["T2", "T3", "T4", "T5", "T6", "T7", "CN"];
 
 // Màu theo lớp (thứ tự cố định theo ngày tạo lớp, không đổi khi lọc).
 export const CLASS_COLORS = [
-  { pill: "bg-rose-100 text-rose-700 hover:bg-rose-200", dot: "bg-rose-500" },
-  { pill: "bg-violet-100 text-violet-700 hover:bg-violet-200", dot: "bg-violet-500" },
-  { pill: "bg-sky-100 text-sky-700 hover:bg-sky-200", dot: "bg-sky-500" },
-  { pill: "bg-amber-100 text-amber-800 hover:bg-amber-200", dot: "bg-amber-500" },
-  { pill: "bg-emerald-100 text-emerald-700 hover:bg-emerald-200", dot: "bg-emerald-500" },
-  { pill: "bg-pink-100 text-pink-700 hover:bg-pink-200", dot: "bg-pink-500" },
-  { pill: "bg-indigo-100 text-indigo-700 hover:bg-indigo-200", dot: "bg-indigo-500" },
-  { pill: "bg-teal-100 text-teal-700 hover:bg-teal-200", dot: "bg-teal-500" }
+  { pill: "bg-rose-100 text-rose-700 hover:bg-rose-200", dot: "bg-rose-500", soft: "bg-rose-50 hover:bg-rose-100", bar: "border-l-rose-500", text: "text-rose-700" },
+  { pill: "bg-violet-100 text-violet-700 hover:bg-violet-200", dot: "bg-violet-500", soft: "bg-violet-50 hover:bg-violet-100", bar: "border-l-violet-500", text: "text-violet-700" },
+  { pill: "bg-sky-100 text-sky-700 hover:bg-sky-200", dot: "bg-sky-500", soft: "bg-sky-50 hover:bg-sky-100", bar: "border-l-sky-500", text: "text-sky-700" },
+  { pill: "bg-amber-100 text-amber-800 hover:bg-amber-200", dot: "bg-amber-500", soft: "bg-amber-50 hover:bg-amber-100", bar: "border-l-amber-500", text: "text-amber-800" },
+  { pill: "bg-emerald-100 text-emerald-700 hover:bg-emerald-200", dot: "bg-emerald-500", soft: "bg-emerald-50 hover:bg-emerald-100", bar: "border-l-emerald-500", text: "text-emerald-700" },
+  { pill: "bg-pink-100 text-pink-700 hover:bg-pink-200", dot: "bg-pink-500", soft: "bg-pink-50 hover:bg-pink-100", bar: "border-l-pink-500", text: "text-pink-700" },
+  { pill: "bg-indigo-100 text-indigo-700 hover:bg-indigo-200", dot: "bg-indigo-500", soft: "bg-indigo-50 hover:bg-indigo-100", bar: "border-l-indigo-500", text: "text-indigo-700" },
+  { pill: "bg-teal-100 text-teal-700 hover:bg-teal-200", dot: "bg-teal-500", soft: "bg-teal-50 hover:bg-teal-100", bar: "border-l-teal-500", text: "text-teal-700" }
 ];
 
 const dayFormatter = new Intl.DateTimeFormat("en-CA", { timeZone: APP_TIME_ZONE, year: "numeric", month: "2-digit", day: "2-digit" });
