@@ -408,9 +408,11 @@ function AgendaItem({ event, now, onOpen, showDate }: { event: SessionEvent; now
   const color = CLASS_COLORS[event.colorIndex % CLASS_COLORS.length];
   const cancelled = occurrence.status === "cancelled";
   const live = now !== null && !cancelled && now >= occurrenceStart(occurrence) && now <= occurrenceEnd(occurrence);
-  const canJoin = now !== null && !cancelled && occurrence.mode === "online" && occurrence.meetingUrl && now >= occurrenceStart(occurrence) - JOIN_EARLY_MS && now <= occurrenceEnd(occurrence);
+  const ended = now !== null && now > occurrenceEnd(occurrence);
+  const joinSoon = now !== null && now >= occurrenceStart(occurrence) - JOIN_EARLY_MS;
+  const online = occurrence.mode === "online";
   return (
-    <div className={cn("flex items-center gap-3 rounded-xl border border-slate-100 p-2.5 transition hover:border-slate-200 hover:bg-slate-50", cancelled && "opacity-60")}>
+    <div className={cn("flex flex-wrap items-center gap-3 rounded-xl border border-slate-100 p-2.5 transition hover:border-slate-200 hover:bg-slate-50", cancelled && "opacity-60")}>
       <button type="button" onClick={() => onOpen(event)} className="flex min-w-0 flex-1 items-center gap-3 text-left">
         <span className={cn("w-1 self-stretch rounded-full", cancelled ? "bg-slate-300" : color.dot)} />
         <span className="min-w-0 flex-1">
@@ -427,16 +429,23 @@ function AgendaItem({ event, now, onOpen, showDate }: { event: SessionEvent; now
           </span>
         </span>
       </button>
-      {canJoin ? (
-        <a
-          href={occurrence.meetingUrl!}
-          target="_blank"
-          rel="noopener noreferrer"
-          className="inline-flex h-8 shrink-0 items-center gap-1 rounded-lg bg-gradient-to-r from-teal-600 to-cyan-600 px-2.5 text-xs font-bold text-white"
-        >
-          <ExternalLink size={13} />
-          Vào học
-        </a>
+      {!cancelled && !ended && online ? (
+        occurrence.meetingUrl ? (
+          <a
+            href={occurrence.meetingUrl}
+            target="_blank"
+            rel="noopener noreferrer"
+            className={cn(
+              "inline-flex h-8 shrink-0 items-center gap-1 rounded-lg px-2.5 text-xs font-bold transition",
+              joinSoon ? "bg-gradient-to-r from-teal-600 to-cyan-600 text-white shadow-[0_6px_14px_-6px_rgba(13,148,136,0.8)]" : "border border-teal-200 bg-teal-50 text-teal-700 hover:bg-teal-100"
+            )}
+          >
+            <ExternalLink size={13} />
+            {joinSoon ? "Vào học" : "Link học"}
+          </a>
+        ) : (
+          <span className="shrink-0 text-[11px] font-semibold text-slate-400">Chưa có link học</span>
+        )
       ) : null}
     </div>
   );
@@ -505,7 +514,10 @@ function SessionDetail({
       </div>
 
       <div className="flex flex-wrap gap-2">
-        {occurrence.mode === "online" && occurrence.meetingUrl && !cancelled ? (
+        {occurrence.mode === "online" && !occurrence.meetingUrl && !cancelled && now <= endMs ? (
+          <p className="w-full rounded-xl bg-slate-50 px-3 py-2.5 text-sm text-slate-500">{isTeacher ? "Buổi online chưa có link học. Bấm Sửa để thêm link." : "Giáo viên chưa gửi link học cho buổi này."}</p>
+        ) : null}
+        {occurrence.mode === "online" && occurrence.meetingUrl && !cancelled && now <= endMs ? (
           <a
             href={occurrence.meetingUrl}
             target="_blank"
@@ -516,7 +528,7 @@ function SessionDetail({
             )}
           >
             <ExternalLink size={16} />
-            {canJoin ? "Vào học ngay" : "Link vào học"}
+            {canJoin ? "Vào học ngay" : "Mở link học"}
           </a>
         ) : null}
         {event.recordingUrl ? (

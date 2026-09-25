@@ -18,7 +18,7 @@ export async function NextSessionCard({ classes }: { classes: Array<{ id: string
   const occurrence = next.occurrence;
   const startMs = occurrenceStart(occurrence);
   const live = now >= startMs && now <= occurrenceEnd(occurrence);
-  const canJoin = occurrence.mode === "online" && occurrence.meetingUrl && now >= startMs - JOIN_EARLY_MS;
+  const joinSoon = now >= startMs - JOIN_EARLY_MS;
   const dayLabel = occurrence.date === today ? "Hôm nay" : occurrence.date === addDays(today, 1) ? "Ngày mai" : `${WEEKDAY_LABELS[weekdayOf(occurrence.date) - 1]}, ${occurrence.date.slice(8)}/${occurrence.date.slice(5, 7)}`;
   const color = CLASS_COLORS[next.colorIndex % CLASS_COLORS.length];
 
@@ -52,16 +52,23 @@ export async function NextSessionCard({ classes }: { classes: Array<{ id: string
         </p>
       </div>
       <div className="flex gap-2">
-        {canJoin ? (
+        {occurrence.mode === "online" && occurrence.meetingUrl ? (
           <a
-            href={occurrence.meetingUrl!}
+            href={occurrence.meetingUrl}
             target="_blank"
             rel="noopener noreferrer"
-            className="inline-flex h-11 items-center gap-2 rounded-xl bg-gradient-to-r from-teal-600 to-cyan-600 px-4 text-sm font-bold text-white shadow-[0_8px_20px_-8px_rgba(13,148,136,0.7)]"
+            className={cn(
+              "inline-flex h-11 items-center gap-2 rounded-xl px-4 text-sm font-bold transition",
+              joinSoon
+                ? "bg-gradient-to-r from-teal-600 to-cyan-600 text-white shadow-[0_8px_20px_-8px_rgba(13,148,136,0.7)]"
+                : "border border-teal-200 bg-teal-50 text-teal-700 hover:bg-teal-100"
+            )}
           >
             <ExternalLink size={16} />
-            Vào học
+            {joinSoon ? "Vào học" : "Link học"}
           </a>
+        ) : occurrence.mode === "online" ? (
+          <span className="inline-flex h-11 items-center rounded-xl bg-slate-50 px-3 text-xs font-semibold text-slate-400">Chưa có link học</span>
         ) : null}
         <Link href="/student/schedule" className="inline-flex h-11 items-center gap-2 rounded-xl border border-slate-200 bg-white px-4 text-sm font-bold text-slate-700 transition hover:bg-slate-50">
           <CalendarDays size={16} />
