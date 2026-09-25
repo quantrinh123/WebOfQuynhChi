@@ -94,7 +94,7 @@ export function AnswerKeyForm({
   }
 
   return (
-    <form action={formAction} className="space-y-5 pb-24">
+    <form action={formAction} className="space-y-5 pb-40 md:pb-24">
       <datalist id="topic-suggestions">
         {topicSuggestions.map((topic) => (
           <option key={topic} value={topic} />
@@ -227,7 +227,7 @@ export function AnswerKeyForm({
         </div>
       </section>
 
-      <div className="fixed inset-x-0 bottom-0 z-40 border-t border-slate-200 bg-white/95 px-4 py-3 shadow-[0_-10px_30px_rgba(15,23,42,0.08)] backdrop-blur md:left-72 md:group-data-[collapsed=true]/shell:left-20">
+      <div className="fixed inset-x-3 bottom-[5.5rem] z-40 rounded-2xl border border-slate-200 bg-white/95 px-4 py-3 shadow-[0_-10px_30px_rgba(15,23,42,0.08)] backdrop-blur md:inset-x-0 md:bottom-0 md:left-72 md:rounded-none md:border-x-0 md:border-b-0 md:group-data-[collapsed=true]/shell:left-20">
         <div className="mx-auto flex max-w-6xl flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
           {missing.length ? (
             <p className="flex items-center gap-2 text-sm font-semibold text-amber-800">

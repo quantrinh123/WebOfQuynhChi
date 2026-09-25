@@ -1,5 +1,6 @@
 import { redirect } from "next/navigation";
 import { LoginForm } from "@/components/auth/LoginForm";
+import { LoginScene } from "@/components/auth/LoginScene";
 import { getCurrentProfile } from "@/lib/auth";
 
 export const dynamic = "force-dynamic";
@@ -11,8 +12,8 @@ export default async function LoginPage() {
   if (profile?.role === "student") redirect("/student/exams");
 
   return (
-    <main className="grid min-h-screen place-items-center bg-[#eef4f8] p-4">
+    <LoginScene>
       <LoginForm />
-    </main>
+    </LoginScene>
   );
 }

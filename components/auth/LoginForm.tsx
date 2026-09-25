@@ -1,7 +1,7 @@
 "use client";
 
 import { useState } from "react";
-import { LogIn } from "lucide-react";
+import { Eye, EyeOff, Loader2, Lock, LogIn, Mail } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { createClient } from "@/lib/supabase/client";
@@ -9,6 +9,7 @@ import { createClient } from "@/lib/supabase/client";
 export function LoginForm() {
   const [error, setError] = useState("");
   const [pending, setPending] = useState(false);
+  const [showPassword, setShowPassword] = useState(false);
 
   async function handleSubmit(event: React.FormEvent<HTMLFormElement>) {
     event.preventDefault();
@@ -47,26 +48,40 @@ export function LoginForm() {
   }
 
   return (
-    <form onSubmit={handleSubmit} className="w-full max-w-md rounded-3xl border border-white/80 bg-white/95 p-8 shadow-[0_24px_60px_rgba(15,23,42,0.12)] backdrop-blur">
-      <div className="mb-7">
-        <div className="mb-4 h-1.5 w-14 rounded-full bg-teal-700" />
-        <p className="text-sm font-black uppercase tracking-[0.16em] text-teal-700">Luyện thi Toán THPT</p>
-        <h1 className="mt-2 text-4xl font-black text-slate-950">Đăng nhập</h1>
-        <p className="mt-2 text-sm leading-6 text-slate-600">Vào hệ thống để quản lý đề thi hoặc làm bài được giao.</p>
+    <form onSubmit={handleSubmit} className="w-full">
+      <div className="mb-8 text-center">
+        <p className="text-xs font-black uppercase tracking-[0.18em] text-teal-600">Luyện thi Toán</p>
+        <h2 className="mt-2 text-3xl font-black tracking-tight text-slate-950">Đăng nhập</h2>
+        <p className="mt-2 text-sm leading-6 text-slate-500">Nhập email và mật khẩu giáo viên đã cấp cho bạn.</p>
       </div>
       <label className="mb-4 block text-sm font-bold text-slate-700">
         Email
-        <Input className="mt-1.5" name="email" type="email" required autoComplete="email" />
+        <div className="relative mt-1.5">
+          <Mail size={18} className="pointer-events-none absolute left-3.5 top-1/2 -translate-y-1/2 text-slate-400" />
+          <Input className="h-12 pl-11" name="email" type="email" required autoComplete="email" placeholder="ban@email.com" />
+        </div>
       </label>
-      <label className="mb-5 block text-sm font-bold text-slate-700">
+      <label className="mb-6 block text-sm font-bold text-slate-700">
         Mật khẩu
-        <Input className="mt-1.5" name="password" type="password" required autoComplete="current-password" />
+        <div className="relative mt-1.5">
+          <Lock size={18} className="pointer-events-none absolute left-3.5 top-1/2 -translate-y-1/2 text-slate-400" />
+          <Input className="h-12 pl-11 pr-12" name="password" type={showPassword ? "text" : "password"} required autoComplete="current-password" placeholder="••••••••" />
+          <button
+            type="button"
+            onClick={() => setShowPassword((value) => !value)}
+            className="absolute right-2 top-1/2 flex h-8 w-8 -translate-y-1/2 items-center justify-center rounded-lg text-slate-400 transition hover:bg-slate-100 hover:text-slate-700"
+            aria-label={showPassword ? "Ẩn mật khẩu" : "Hiện mật khẩu"}
+          >
+            {showPassword ? <EyeOff size={17} /> : <Eye size={17} />}
+          </button>
+        </div>
       </label>
       {error ? <p className="mb-4 rounded-xl bg-rose-50 p-3 text-sm font-medium text-rose-700 ring-1 ring-rose-100">{error}</p> : null}
-      <Button className="w-full gap-2 py-3" disabled={pending}>
-        <LogIn size={18} />
+      <Button className="h-12 w-full gap-2 text-base" disabled={pending}>
+        {pending ? <Loader2 size={18} className="animate-spin" /> : <LogIn size={18} />}
         {pending ? "Đang đăng nhập..." : "Đăng nhập"}
       </Button>
+      <p className="mt-6 text-center text-xs text-slate-500">Chưa có tài khoản? Liên hệ giáo viên để được cấp tài khoản.</p>
     </form>
   );
 }

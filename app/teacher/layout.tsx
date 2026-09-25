@@ -1,6 +1,11 @@
 import { AppShell } from "@/components/layout/AppShell";
-import { TeacherSidebar } from "@/components/layout/TeacherSidebar";
+import { requireTeacher } from "@/lib/auth";
 
-export default function TeacherLayout({ children }: { children: React.ReactNode }) {
-  return <AppShell sidebar={<TeacherSidebar />}>{children}</AppShell>;
+export default async function TeacherLayout({ children }: { children: React.ReactNode }) {
+  const teacher = await requireTeacher();
+  return (
+    <AppShell role="teacher" userName={teacher.full_name}>
+      {children}
+    </AppShell>
+  );
 }

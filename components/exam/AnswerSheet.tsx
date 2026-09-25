@@ -67,6 +67,7 @@ export function AnswerSheet({
     try {
       const response = await fetch("/api/student/answers", {
         method: "POST",
+        keepalive: true,
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({
           submissionId,

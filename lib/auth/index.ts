@@ -1,8 +1,10 @@
+import { cache } from "react";
 import { redirect } from "next/navigation";
 import { createClient, createServiceClient } from "@/lib/supabase/server";
 import type { Profile } from "@/lib/types";
 
-export async function getCurrentProfile(): Promise<Profile | null> {
+// cache: layout và page trong cùng một request chỉ truy vấn hồ sơ một lần.
+export const getCurrentProfile = cache(async function getCurrentProfile(): Promise<Profile | null> {
   const supabase = await createClient();
   const {
     data: { user }
@@ -12,7 +14,7 @@ export async function getCurrentProfile(): Promise<Profile | null> {
   const serviceSupabase = createServiceClient();
   const { data } = await serviceSupabase.from("profiles").select("*").eq("id", user.id).single();
   return data as Profile | null;
-}
+});
 
 export async function requireProfile() {
   const profile = await getCurrentProfile();

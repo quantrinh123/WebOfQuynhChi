@@ -1,9 +1,9 @@
-import { CalendarDays, ExternalLink, Video } from "lucide-react";
 import { PageHeader } from "@/components/layout/PageHeader";
-import { EmptyState } from "@/components/ui/EmptyState";
+import { StudentEmpty } from "@/components/student/StudentEmpty";
 import { requireStudent } from "@/lib/auth";
 import { createServiceClient } from "@/lib/supabase/server";
-import { formatDate } from "@/lib/utils/format";
+import { RecordingCard } from "@/components/recordings/RecordingCard";
+import { MathDecor } from "@/components/student/MathDecor";
 import type { ClassRecording } from "@/lib/types";
 
 export default async function StudentRecordingsPage() {
@@ -26,38 +26,19 @@ export default async function StudentRecordingsPage() {
 
   return (
     <>
-      <PageHeader title="Buổi học" description="Xem lại video record các buổi học của lớp bạn." />
-      {!classesWithRecordings.length ? <EmptyState title="Chưa có link record" description="Giáo viên chưa đăng link record buổi học nào cho lớp của bạn." /> : null}
+      <div className="relative">
+        <MathDecor preset="header" variant="pastel" />
+        <PageHeader title="Buổi học" description="Xem lại video record các buổi học của lớp bạn." />
+      </div>
+      {!classesWithRecordings.length ? <StudentEmpty title="Chưa có link record" description="Giáo viên chưa đăng link record buổi học nào cho lớp của bạn." /> : null}
 
       <div className="space-y-6">
         {classesWithRecordings.map((classInfo) => (
           <section key={classInfo.id}>
-            <h2 className="mb-3 text-lg font-bold text-slate-950">{classInfo.name}</h2>
-            <div className="grid gap-3">
+            <h2 className="mb-3 flex items-center gap-2 text-lg font-black text-slate-950"><span className="h-5 w-1.5 rounded-full bg-gradient-to-b from-teal-500 to-cyan-500" />{classInfo.name}</h2>
+            <div className="grid gap-4 sm:grid-cols-2 xl:grid-cols-3">
               {classInfo.recordings.map((recording) => (
-                <article key={recording.id} className="surface flex flex-col gap-4 p-5 sm:flex-row sm:items-center sm:justify-between">
-                  <div className="flex min-w-0 gap-3">
-                    <div className="flex h-11 w-11 shrink-0 items-center justify-center rounded-xl bg-sky-50 text-sky-700">
-                      <Video size={22} />
-                    </div>
-                    <div className="min-w-0">
-                      <h3 className="truncate font-bold text-slate-950">{recording.title}</h3>
-                      <p className="mt-1 flex items-center gap-1.5 text-sm text-slate-600">
-                        <CalendarDays size={15} />
-                        {formatDate(recording.recorded_at ?? recording.created_at)}
-                      </p>
-                    </div>
-                  </div>
-                  <a
-                    href={recording.url}
-                    target="_blank"
-                    rel="noopener noreferrer"
-                    className="inline-flex h-10 items-center justify-center gap-2 rounded-xl bg-teal-700 px-4 text-sm font-bold text-white transition hover:bg-teal-800"
-                  >
-                    <ExternalLink size={16} />
-                    Xem record
-                  </a>
-                </article>
+                <RecordingCard key={recording.id} recording={recording} />
               ))}
             </div>
           </section>

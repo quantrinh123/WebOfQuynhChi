@@ -3,10 +3,10 @@
 @tailwind utilities;
 
 :root {
-  --background: 204 38% 96%;
+  --background: 220 40% 97%;
   --foreground: 222 47% 11%;
-  --border: 214 28% 86%;
-  --primary: 187 82% 30%;
+  --border: 214 28% 88%;
+  --primary: 174 84% 32%;
   --primary-foreground: 0 0% 100%;
 }
 
@@ -16,12 +16,19 @@
 
 html {
   min-width: 320px;
+  -webkit-font-smoothing: antialiased;
+  -moz-osx-font-smoothing: grayscale;
 }
 
 body {
-  background: #eef4f8;
   color: hsl(var(--foreground));
-  font-feature-settings: "cv02", "cv03", "cv04", "cv11";
+  background-color: #f5f7fb;
+  /* Nền có các mảng màu loang nhẹ theo tông thương hiệu. */
+  background-image:
+    radial-gradient(1100px 560px at -10% -15%, rgba(20, 184, 166, 0.13), transparent 60%),
+    radial-gradient(900px 520px at 110% -10%, rgba(99, 102, 241, 0.11), transparent 60%),
+    radial-gradient(800px 480px at 50% 120%, rgba(6, 182, 212, 0.08), transparent 60%);
+  background-attachment: fixed;
 }
 
 input,
@@ -43,27 +50,226 @@ table {
 }
 
 ::selection {
-  background: rgba(15, 118, 110, 0.18);
+  background: rgba(20, 184, 166, 0.22);
 }
 
 @layer components {
   .surface {
-    @apply rounded-2xl border border-slate-200/80 bg-white shadow-[0_12px_34px_rgba(15,23,42,0.06)];
+    @apply rounded-2xl border border-slate-200/70 bg-white/90 shadow-[0_1px_2px_rgba(15,23,42,0.04),0_10px_30px_-12px_rgba(15,23,42,0.10)] backdrop-blur-sm;
   }
 
   .surface-soft {
-    @apply rounded-2xl border border-white/80 bg-white/75 shadow-[0_10px_28px_rgba(15,23,42,0.05)] backdrop-blur;
+    @apply rounded-2xl border border-white/80 bg-white/70 shadow-[0_10px_30px_-12px_rgba(15,23,42,0.10)] backdrop-blur;
   }
 
   .table-shell {
-    @apply overflow-hidden rounded-2xl border border-slate-200/80 bg-white shadow-[0_12px_34px_rgba(15,23,42,0.06)];
+    @apply overflow-hidden rounded-2xl border border-slate-200/70 bg-white/90 shadow-[0_1px_2px_rgba(15,23,42,0.04),0_10px_30px_-12px_rgba(15,23,42,0.10)] backdrop-blur-sm;
+  }
+
+  .table-shell tbody tr {
+    @apply transition-colors;
+  }
+
+  .table-shell tbody tr:hover {
+    @apply bg-teal-50/40;
   }
 
   .table-head {
-    @apply bg-slate-50 text-xs font-bold uppercase tracking-wide text-slate-500;
+    @apply bg-slate-50/80 text-[11px] font-bold uppercase tracking-wider text-slate-500;
   }
 
   .muted-card {
-    @apply rounded-2xl border border-slate-200/80 bg-slate-50/80;
+    @apply rounded-2xl border border-slate-200/70 bg-slate-50/80;
+  }
+
+  .text-gradient {
+    @apply bg-gradient-to-r from-teal-600 via-cyan-600 to-indigo-600 bg-clip-text text-transparent;
+  }
+
+  .bg-brand {
+    @apply bg-gradient-to-br from-teal-500 via-cyan-500 to-indigo-500;
+  }
+
+  .animate-page {
+    animation: page-in 0.35s ease-out both;
+  }
+}
+
+@keyframes page-in {
+  from {
+    opacity: 0;
+    transform: translateY(6px);
+  }
+  to {
+    opacity: 1;
+    transform: translateY(0);
+  }
+}
+
+@keyframes float-slow {
+  0%,
+  100% {
+    transform: translateY(0) rotate(var(--rotate, 0deg));
+  }
+  50% {
+    transform: translateY(-14px) rotate(var(--rotate, 0deg));
+  }
+}
+
+.animate-float {
+  animation: float-slow 7s ease-in-out infinite;
+}
+
+/* Trang đăng nhập: cực quang, thẻ và huy hiệu bay nhẹ. */
+@keyframes aurora-a {
+  0%, 100% { transform: translate(0, 0) scale(1); }
+  50% { transform: translate(120px, 80px) scale(1.15); }
+}
+
+@keyframes aurora-b {
+  0%, 100% { transform: translate(0, 0) scale(1.1); }
+  50% { transform: translate(-140px, -60px) scale(0.95); }
+}
+
+@keyframes aurora-c {
+  0%, 100% { transform: translate(0, 0); opacity: 0.6; }
+  50% { transform: translate(-60px, 90px); opacity: 1; }
+}
+
+@keyframes float-card {
+  0%, 100% { transform: translateY(0) rotate(-1deg); }
+  50% { transform: translateY(-10px) rotate(0.5deg); }
+}
+
+@keyframes float-chip {
+  0%, 100% { transform: translateY(0); }
+  50% { transform: translateY(-12px); }
+}
+
+@keyframes swap-in {
+  from { opacity: 0; transform: translateY(8px); filter: blur(4px); }
+  to { opacity: 1; transform: translateY(0); filter: blur(0); }
+}
+
+.animate-aurora-a { animation: aurora-a 16s ease-in-out infinite; }
+.animate-aurora-b { animation: aurora-b 19s ease-in-out infinite; }
+.animate-aurora-c { animation: aurora-c 13s ease-in-out infinite; }
+.animate-float-card { animation: float-card 8s ease-in-out infinite; }
+.animate-float-chip { animation: float-chip 5.5s ease-in-out infinite; }
+.animate-swap { animation: swap-in 0.5s ease-out both; }
+
+/* Sân khấu toán học: quỹ đạo, ký hiệu bay lên, đồ thị tự vẽ, sóng sin, chiều sâu theo chuột. */
+@keyframes spin-orbit {
+  to { transform: rotate(360deg); }
+}
+
+@keyframes rise {
+  0% { transform: translateY(40px) rotate(0deg); opacity: 0; }
+  15% { opacity: 1; }
+  85% { opacity: 0.8; }
+  100% { transform: translateY(-105vh) rotate(200deg); opacity: 0; }
+}
+
+@keyframes draw {
+  0% { stroke-dashoffset: 1; opacity: 1; }
+  45% { stroke-dashoffset: 0; opacity: 1; }
+  80% { stroke-dashoffset: 0; opacity: 1; }
+  100% { stroke-dashoffset: 0; opacity: 0; }
+}
+
+@keyframes wave {
+  to { transform: translateX(-50%); }
+}
+
+.animate-spin-orbit { animation: spin-orbit 40s linear infinite; }
+.animate-rise { animation: rise 14s linear infinite; opacity: 0; }
+.animate-draw { stroke-dasharray: 1; stroke-dashoffset: 1; animation: draw 6s ease-in-out infinite; }
+.animate-wave { animation: wave 12s linear infinite; }
+
+/* Hoạt hình trang đăng nhập: sticker nhún, nhân vật π nhảy và chớp mắt. */
+@keyframes bob {
+  0%, 100% { transform: translateY(0) rotate(0deg); }
+  25% { transform: translateY(-10px) rotate(-4deg); }
+  50% { transform: translateY(-4px) rotate(3deg); }
+  75% { transform: translateY(-12px) rotate(-2deg); }
+}
+
+@keyframes mascot {
+  0%, 100% { transform: translateY(0) scale(1, 1); }
+  40% { transform: translateY(-10px) scale(0.98, 1.03); }
+  55% { transform: translateY(0) scale(1.04, 0.95); }
+  70% { transform: translateY(-3px) scale(1, 1); }
+}
+
+@keyframes blink {
+  0%, 92%, 100% { transform: scaleY(1); }
+  95% { transform: scaleY(0.1); }
+}
+
+.animate-bob { animation: bob 5s ease-in-out infinite; }
+.animate-mascot { animation: mascot 2.6s ease-in-out infinite; transform-origin: 50% 100%; }
+.animate-blink { animation: blink 4s ease-in-out infinite; }
+
+/* Vòng điểm chạy từ 0 tới điểm thật khi hiện ra. */
+@keyframes ring-fill {
+  from { stroke-dashoffset: var(--ring-full); }
+  to { stroke-dashoffset: var(--ring-offset); }
+}
+
+.animate-ring { animation: ring-fill 1.2s cubic-bezier(0.22, 1, 0.36, 1) both; }
+
+/* Hiện dần từng phần tử theo thứ tự. */
+@keyframes rise-in {
+  from { opacity: 0; transform: translateY(12px); }
+  to { opacity: 1; transform: translateY(0); }
+}
+
+.animate-rise-in { animation: rise-in 0.5s cubic-bezier(0.22, 1, 0.36, 1) both; }
+
+/* Pháo giấy rơi xuống, trôi ngang và xoay. */
+@keyframes confetti-fall {
+  0% { transform: translate3d(0, 0, 0) rotate(0deg); opacity: 1; }
+  85% { opacity: 1; }
+  100% { transform: translate3d(var(--drift, 0px), 105vh, 0) rotate(var(--spin, 720deg)); opacity: 0; }
+}
+
+.animate-confetti { animation: confetti-fall 3s cubic-bezier(0.25, 0.6, 0.4, 1) both; }
+
+.parallax-layer {
+  transform: translate3d(calc(var(--mx, 0) * var(--depth, 0px)), calc(var(--my, 0) * var(--depth, 0px)), 0);
+  transition: transform 0.4s cubic-bezier(0.22, 1, 0.36, 1);
+  will-change: transform;
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .animate-spin-orbit,
+  .animate-rise,
+  .animate-wave,
+  .animate-bob,
+  .animate-mascot,
+  .animate-blink,
+  .animate-ring,
+  .animate-rise-in {
+    animation: none;
+  }
+  .animate-draw {
+    animation: none;
+    stroke-dashoffset: 0;
+  }
+  .parallax-layer {
+    transform: none;
+  }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .animate-page,
+  .animate-float,
+  .animate-aurora-a,
+  .animate-aurora-b,
+  .animate-aurora-c,
+  .animate-float-card,
+  .animate-float-chip,
+  .animate-swap {
+    animation: none;
   }
 }
