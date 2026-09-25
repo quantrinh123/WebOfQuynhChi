@@ -3,6 +3,7 @@ import { ScheduleView } from "@/components/schedule/ScheduleView";
 import { MathDecor } from "@/components/student/MathDecor";
 import { StudentEmpty } from "@/components/student/StudentEmpty";
 import { requireStudent } from "@/lib/auth";
+import { getCalendarFeed } from "@/lib/calendar-token";
 import { parseMonth } from "@/lib/schedule";
 import { attendanceRate, loadAttendanceSummary } from "@/lib/schedule-data";
 import { createServiceClient } from "@/lib/supabase/server";
@@ -20,6 +21,7 @@ export default async function StudentSchedulePage({ searchParams }: { searchPara
   const selectedClassId = classes.some((item) => item.id === classFilter) ? classFilter : undefined;
   const attendance = (await loadAttendanceSummary([student.id], classes.map((item) => item.id))).get(student.id);
   const rate = attendanceRate(attendance);
+  const feed = await getCalendarFeed(student.id);
 
   return (
     <>
@@ -43,6 +45,7 @@ export default async function StudentSchedulePage({ searchParams }: { searchPara
         <ScheduleView
           role="student"
           studentId={student.id}
+          feed={feed}
           classes={classes}
           selectedClassId={selectedClassId}
           month={month}

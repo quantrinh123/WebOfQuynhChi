@@ -1,4 +1,5 @@
 import { ScheduleBoard } from "@/components/schedule/ScheduleBoard";
+import type { CalendarFeed } from "@/components/schedule/GoogleCalendarSync";
 import { formatMonthTitle, monthGrid, shiftMonth, todayVN } from "@/lib/schedule";
 import { loadCalendar } from "@/lib/schedule-data";
 
@@ -12,7 +13,8 @@ export async function ScheduleView({
   month,
   buildHref,
   showClassFilter = true,
-  studentId
+  studentId,
+  feed
 }: {
   role: "teacher" | "student";
   classes: ClassInput[];
@@ -21,6 +23,7 @@ export async function ScheduleView({
   buildHref: (params: { month?: string; classId?: string }) => string;
   showClassFilter?: boolean;
   studentId?: string;
+  feed?: CalendarFeed;
 }) {
   const grid = monthGrid(month);
   const filtered = selectedClassId ? classes.filter((item) => item.id === selectedClassId) : classes;
@@ -54,6 +57,7 @@ export async function ScheduleView({
       classes={calendar.classes.filter((item) => filteredIds.has(item.id))}
       schedules={role === "teacher" ? calendar.schedules : []}
       rosters={role === "teacher" ? calendar.rosters : {}}
+      feed={feed}
       summary={{ sessions: monthSessions.length, classes: activeClasses.size }}
     />
   );

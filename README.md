@@ -31,7 +31,9 @@ Không commit file `.env`.
 ## Supabase
 
 1. Tạo Supabase project.
-2. Vao SQL Editor va chay `db/schema.sql`. Nếu database đã tạo từ trước, chỉ cần chạy thêm các file trong `db/migrations/` theo thứ tự (`001_class_recordings.sql`, `002_class_schedules.sql`, `003_attendance.sql`).
+2. Vao SQL Editor va chay `db/schema.sql`. Nếu database đã tạo từ trước, chỉ cần chạy thêm các file trong `db/migrations/` theo thứ tự (`001_class_recordings.sql`, `002_class_schedules.sql`, `003_attendance.sql`, `004_calendar_tokens.sql`).
+
+Đồng bộ Google Calendar cần web chạy trên internet và `NEXT_PUBLIC_APP_URL` là địa chỉ thật (không phải localhost).
 3. Vao Storage, tao private bucket ten `exam-pdfs`.
 4. Tạo user trong Authentication:
    - 1 giáo viên

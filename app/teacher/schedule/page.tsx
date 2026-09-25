@@ -2,6 +2,7 @@ import { PageHeader } from "@/components/layout/PageHeader";
 import { ScheduleView } from "@/components/schedule/ScheduleView";
 import { EmptyState } from "@/components/ui/EmptyState";
 import { requireTeacher } from "@/lib/auth";
+import { getCalendarFeed } from "@/lib/calendar-token";
 import { parseMonth } from "@/lib/schedule";
 import { createServiceClient } from "@/lib/supabase/server";
 
@@ -15,6 +16,7 @@ export default async function TeacherSchedulePage({ searchParams }: { searchPara
   const { data: classes } = await supabase.from("classes").select("id, name, teacher_id, created_at").eq("teacher_id", teacher.id);
   const classFilter = first(params.class);
   const selectedClassId = classes?.some((item) => item.id === classFilter) ? classFilter : undefined;
+  const feed = await getCalendarFeed(teacher.id);
 
   return (
     <>
@@ -24,6 +26,7 @@ export default async function TeacherSchedulePage({ searchParams }: { searchPara
       ) : (
         <ScheduleView
           role="teacher"
+          feed={feed}
           classes={classes}
           selectedClassId={selectedClassId}
           month={month}

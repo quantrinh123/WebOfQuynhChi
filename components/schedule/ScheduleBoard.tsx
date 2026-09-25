@@ -26,6 +26,7 @@ import { deleteClassSchedule, deleteHoliday, deleteSession, saveAttendance, save
 import type { ActionResult } from "@/lib/actions/result";
 import { ActionForm, SubmitButton, Toast } from "@/components/ui/ActionForm";
 import { Dialog } from "@/components/ui/Dialog";
+import { GoogleCalendarSync, type CalendarFeed } from "@/components/schedule/GoogleCalendarSync";
 import { Input, Select, Textarea } from "@/components/ui/input";
 import { CLASS_COLORS, WEEKDAY_LABELS, WEEKDAY_SHORT, occurrenceEnd, occurrenceStart, type HolidayRow, type ScheduleRow } from "@/lib/schedule";
 import type { AttendanceStatus, CalendarClass, CalendarEvent, RosterStudent } from "@/lib/schedule-data";
@@ -50,7 +51,8 @@ export function ScheduleBoard({
   classes,
   schedules,
   rosters,
-  summary
+  summary,
+  feed
 }: {
   role: "teacher" | "student";
   month: string;
@@ -67,6 +69,7 @@ export function ScheduleBoard({
   schedules: ScheduleRow[];
   rosters: Record<string, RosterStudent[]>;
   summary: { sessions: number; classes: number };
+  feed?: CalendarFeed;
 }) {
   const router = useRouter();
   const isTeacher = role === "teacher";
@@ -106,6 +109,7 @@ export function ScheduleBoard({
           </Link>
         </div>
         <div className="flex flex-wrap items-center gap-2">
+          {feed !== undefined ? <GoogleCalendarSync feed={feed} /> : null}
           {filterOptions.length > 1 ? (
             <Select
               aria-label="Lọc theo lớp"

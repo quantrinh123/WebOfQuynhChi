@@ -328,5 +328,15 @@ create policy "teachers manage attendance" on session_attendance for all using (
 );
 create policy "students view own attendance" on session_attendance for select using (student_id = auth.uid());
 
+-- Link đồng bộ Google Calendar (xem db/migrations/004_calendar_tokens.sql)
+create table if not exists calendar_tokens (
+  user_id uuid primary key references profiles(id) on delete cascade,
+  token text not null unique,
+  created_at timestamptz default now()
+);
+
+-- Chỉ server (service role) đọc/ghi bảng này nên không mở policy nào cho client.
+alter table calendar_tokens enable row level security;
+
 -- Storage: create private bucket exam-pdfs in Supabase dashboard.
 -- This app uses service role uploads and signed URLs for reading PDFs.
