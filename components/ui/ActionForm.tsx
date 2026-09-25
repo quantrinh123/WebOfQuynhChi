@@ -4,6 +4,7 @@ import { useActionState, useEffect, useState } from "react";
 import { useFormStatus } from "react-dom";
 import { CheckCircle2, Loader2, XCircle } from "lucide-react";
 import { Button } from "@/components/ui/button";
+import { Portal } from "@/components/ui/Portal";
 import { cn } from "@/lib/utils/format";
 import type { ActionResult } from "@/lib/actions/result";
 
@@ -14,14 +15,21 @@ export function ActionForm({
   action,
   children,
   className,
-  id
+  id,
+  onSuccess
 }: {
   action: FormAction;
   children: React.ReactNode;
   className?: string;
   id?: string;
+  onSuccess?: (result: NonNullable<ActionResult>) => void;
 }) {
   const [state, formAction] = useActionState(action, null);
+  useEffect(() => {
+    if (state?.ok) onSuccess?.(state);
+    // Chỉ chạy khi có kết quả mới.
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [state]);
   return (
     <form id={id} action={formAction} className={className}>
       {children}
@@ -42,6 +50,7 @@ export function Toast({ result }: { result: ActionResult }) {
 
   if (!result || !visible) return null;
   return (
+    <Portal>
     <div
       role="status"
       className={cn(
@@ -52,6 +61,7 @@ export function Toast({ result }: { result: ActionResult }) {
       {result.ok ? <CheckCircle2 size={18} className="mt-0.5 shrink-0" /> : <XCircle size={18} className="mt-0.5 shrink-0" />}
       <span>{result.message}</span>
     </div>
+    </Portal>
   );
 }
 

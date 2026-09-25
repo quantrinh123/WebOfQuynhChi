@@ -18,6 +18,7 @@ import { ColumnChart, type ColumnDatum } from "@/components/charts/ColumnChart";
 import { ScoreBadge } from "@/components/exam/Badges";
 import { requireTeacher } from "@/lib/auth";
 import { getExamSetupSteps } from "@/lib/exam-setup";
+import { attendanceRate, loadAttendanceSummary } from "@/lib/schedule-data";
 import { createServiceClient } from "@/lib/supabase/server";
 import { APP_TIME_ZONE, cn, formatDateTime, formatScore } from "@/lib/utils/format";
 
@@ -38,7 +39,7 @@ export default async function TeacherDashboardPage() {
   const teacher = await requireTeacher();
   const supabase = createServiceClient();
   const [{ data: classes }, { data: exams }] = await Promise.all([
-    supabase.from("classes").select("id, name, class_students(student_id)").eq("teacher_id", teacher.id),
+    supabase.from("classes").select("id, name, class_students(student_id, profiles(full_name))").eq("teacher_id", teacher.id),
     supabase
       .from("exams")
       .select(
@@ -51,6 +52,9 @@ export default async function TeacherDashboardPage() {
   const now = Date.now();
   const studentsByClass = new Map((classes ?? []).map((item: any) => [item.id, (item.class_students ?? []).map((row: any) => row.student_id as string)]));
   const allStudents = new Set(Array.from(studentsByClass.values()).flat());
+  const studentNames = new Map<string, string>();
+  (classes ?? []).forEach((item: any) => (item.class_students ?? []).forEach((row: any) => studentNames.set(row.student_id, row.profiles?.full_name ?? "Học sinh")));
+  const attendance = await loadAttendanceSummary(Array.from(allStudents), (classes ?? []).map((item: any) => item.id));
   const examList: any[] = exams ?? [];
 
   // Mọi bài đã nộp, điểm quy về thang 10.
@@ -139,15 +143,19 @@ export default async function TeacherDashboardPage() {
     if (!allStudents.has(row.studentId)) return;
     byStudent.set(row.studentId, [...(byStudent.get(row.studentId) ?? []), row]);
   });
-  const flagged = Array.from(byStudent.values())
-    .map((rows) => {
-      const sorted = [...rows].sort((a, b) => a.at - b.at);
+  const flagged = Array.from(allStudents)
+    .map((studentId) => {
+      const sorted = [...(byStudent.get(studentId) ?? [])].sort((a, b) => a.at - b.at);
       const last = sorted[sorted.length - 1];
       const reasons: string[] = [];
-      if (last.score10 < 5) reasons.push(`${formatScore(last.score10)}/10 đề gần nhất`);
+      if (last && last.score10 < 5) reasons.push(`${formatScore(last.score10)}/10 đề gần nhất`);
       const n = sorted.length;
       if (n >= 3 && sorted[n - 1].score10 < sorted[n - 2].score10 && sorted[n - 2].score10 < sorted[n - 3].score10) reasons.push("Giảm 2 đề liên tiếp");
-      return { studentId: last.studentId, name: last.studentName, reasons, score: last.score10 };
+      const record = attendance.get(studentId);
+      const rate = attendanceRate(record);
+      if (record && record.records.length >= 2 && record.records[0].status === "absent" && record.records[1].status === "absent") reasons.push("Vắng 2 buổi gần nhất");
+      else if (rate !== null && rate < 80 && record!.present + record!.absent >= 5) reasons.push(`Chuyên cần ${rate}%`);
+      return { studentId, name: studentNames.get(studentId) ?? last?.studentName ?? "Học sinh", reasons, score: last ? last.score10 : 10 };
     })
     .filter((row) => row.reasons.length)
     .sort((a, b) => a.score - b.score)

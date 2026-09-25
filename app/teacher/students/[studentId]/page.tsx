@@ -9,6 +9,7 @@ import { rankSubmissions } from "@/components/exam/Leaderboard";
 import { SectionBreakdown, TopicBreakdown } from "@/components/exam/StudentAnalysis";
 import { analyzeSubmission, mergeAnalyses } from "@/lib/analysis";
 import { requireTeacher } from "@/lib/auth";
+import { attendanceRate, loadAttendanceSummary } from "@/lib/schedule-data";
 import { createServiceClient } from "@/lib/supabase/server";
 import { formatDateTime, formatScore } from "@/lib/utils/format";
 
@@ -25,6 +26,9 @@ export default async function StudentProfilePage({ params }: { params: Promise<{
     .eq("classes.teacher_id", teacher.id);
   if (!memberships?.length) notFound();
   const classNames = memberships.map((item: any) => item.classes?.name).filter(Boolean).join(", ");
+  const classNameById = new Map(memberships.map((item: any) => [item.classes?.id, item.classes?.name]));
+  const attendance = (await loadAttendanceSummary([studentId], Array.from(classNameById.keys()) as string[])).get(studentId);
+  const attendancePercent = attendanceRate(attendance);
 
   const { data: profile } = await supabase.from("profiles").select("full_name").eq("id", studentId).single();
 
@@ -80,6 +84,38 @@ export default async function StudentProfilePage({ params }: { params: Promise<{
   return (
     <>
       <PageHeader title={profile?.full_name ?? "Học sinh"} description={`Hồ sơ học tập · Lớp: ${classNames}`} />
+
+      {attendance ? (
+        <section className="surface mb-6 flex flex-col gap-4 p-5 md:flex-row md:items-center">
+          <div className="flex items-center gap-4">
+            <span
+              className={
+                attendancePercent !== null && attendancePercent >= 80
+                  ? "flex h-14 w-14 items-center justify-center rounded-2xl bg-emerald-100 text-lg font-black text-emerald-700"
+                  : "flex h-14 w-14 items-center justify-center rounded-2xl bg-rose-100 text-lg font-black text-rose-700"
+              }
+            >
+              {attendancePercent ?? "-"}%
+            </span>
+            <div>
+              <p className="font-black text-slate-950">Chuyên cần</p>
+              <p className="text-sm text-slate-600">
+                Có mặt {attendance.present} · Vắng {attendance.absent} / {attendance.present + attendance.absent} buổi đã điểm danh
+              </p>
+            </div>
+          </div>
+          {attendance.absences.length ? (
+            <div className="flex flex-wrap gap-1.5 md:ml-auto md:justify-end">
+              {attendance.absences.slice(0, 8).map((item) => (
+                <span key={`${item.classId}:${item.date}`} className="rounded-full bg-rose-50 px-2.5 py-1 text-xs font-bold text-rose-700 ring-1 ring-rose-100">
+                  Vắng {item.date.slice(8)}/{item.date.slice(5, 7)} · {classNameById.get(item.classId)}
+                </span>
+              ))}
+              {attendance.absences.length > 8 ? <span className="text-xs font-semibold text-slate-500">+{attendance.absences.length - 8} buổi</span> : null}
+            </div>
+          ) : null}
+        </section>
+      ) : null}
 
       {!history.length ? (
         <EmptyState title="Chưa có bài làm" description="Học sinh này chưa nộp đề nào của bạn." />

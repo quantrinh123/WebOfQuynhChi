@@ -9,6 +9,7 @@ import {
   Mail,
   Send,
   Trash2,
+  UserMinus,
   UserPlus,
   Users,
   Video
@@ -33,9 +34,12 @@ import { EmptyState } from "@/components/ui/EmptyState";
 import { RecordingCard } from "@/components/recordings/RecordingCard";
 import { Input, Select } from "@/components/ui/input";
 import { TabNav } from "@/components/ui/TabNav";
+import { ScheduleView } from "@/components/schedule/ScheduleView";
+import { parseMonth } from "@/lib/schedule";
+import { attendanceRate, loadAttendanceSummary } from "@/lib/schedule-data";
 import { cn, formatDateTime } from "@/lib/utils/format";
 
-const TABS = ["students", "exams", "recordings", "settings"] as const;
+const TABS = ["students", "schedule", "exams", "recordings", "settings"] as const;
 type Tab = (typeof TABS)[number];
 
 const AVATAR_TONES = [
@@ -52,11 +56,13 @@ export default async function ClassDetailPage({
   searchParams
 }: {
   params: Promise<{ id: string }>;
-  searchParams?: Promise<{ tab?: string | string[] }>;
+  searchParams?: Promise<{ tab?: string | string[]; month?: string | string[] }>;
 }) {
   const teacher = await requireTeacher();
   const { id } = await params;
-  const rawTab = (await searchParams)?.tab;
+  const resolvedParams = (await searchParams) ?? {};
+  const rawTab = resolvedParams.tab;
+  const rawMonth = Array.isArray(resolvedParams.month) ? resolvedParams.month[0] : resolvedParams.month;
   const requestedTab = Array.isArray(rawTab) ? rawTab[0] : rawTab;
   const tab: Tab = TABS.includes(requestedTab as Tab) ? (requestedTab as Tab) : "students";
   const supabase = createServiceClient();
@@ -110,6 +116,7 @@ export default async function ClassDetailPage({
         activeHref={`${base}?tab=${tab}`}
         items={[
           { href: `${base}?tab=students`, label: "Học sinh", badge: students?.length ?? 0 },
+          { href: `${base}?tab=schedule`, label: "Lịch học" },
           { href: `${base}?tab=exams`, label: "Đề đã giao", badge: assignments?.length ?? 0 },
           { href: `${base}?tab=recordings`, label: "Buổi học", badge: recordings?.length ?? 0 },
           { href: `${base}?tab=settings`, label: "Cài đặt" }
@@ -117,6 +124,15 @@ export default async function ClassDetailPage({
       />
 
       {tab === "students" ? <StudentsTab classId={id} students={students ?? []} studentIds={studentIds} examIds={examIds} /> : null}
+      {tab === "schedule" ? (
+        <ScheduleView
+          role="teacher"
+          classes={[classInfo]}
+          month={parseMonth(rawMonth)}
+          showClassFilter={false}
+          buildHref={({ month }) => (month ? `${base}?tab=schedule&month=${month}` : `${base}?tab=schedule`)}
+        />
+      ) : null}
       {tab === "exams" ? <ExamsTab classId={id} teacherId={teacher.id} assignments={assignments ?? []} studentIds={studentIds} /> : null}
       {tab === "recordings" ? <RecordingsTab classId={id} recordings={recordings ?? []} /> : null}
       {tab === "settings" ? <SettingsTab classInfo={classInfo} /> : null}
@@ -133,6 +149,7 @@ async function StudentsTab({ classId, students, studentIds, examIds }: { classId
       ? await supabase.from("submissions").select("student_id, status, final_score").in("student_id", studentIds).in("exam_id", examIds).neq("status", "doing")
       : { data: [] as Array<{ student_id: string; status: string; final_score: number }> };
 
+  const attendance = await loadAttendanceSummary(studentIds, [classId]);
   const statsByStudent = new Map<string, { count: number; total: number }>();
   (submissions ?? []).forEach((row) => {
     const stats = statsByStudent.get(row.student_id) ?? { count: 0, total: 0 };
@@ -145,7 +162,15 @@ async function StudentsTab({ classId, students, studentIds, examIds }: { classId
   const rows = students
     .map((row: any) => {
       const stats = statsByStudent.get(row.student_id);
-      return { id: row.student_id as string, name: (row.profiles?.full_name as string) ?? "-", count: stats?.count ?? 0, avg: stats?.count ? stats.total / stats.count : null };
+      const summary = attendance.get(row.student_id);
+      return {
+        id: row.student_id as string,
+        name: (row.profiles?.full_name as string) ?? "-",
+        count: stats?.count ?? 0,
+        avg: stats?.count ? stats.total / stats.count : null,
+        attendanceRate: attendanceRate(summary),
+        absent: summary?.absent ?? 0
+      };
     })
     .sort((a, b) => (b.avg ?? -1) - (a.avg ?? -1) || a.name.localeCompare(b.name, "vi"));
 
@@ -181,6 +206,17 @@ async function StudentsTab({ classId, students, studentIds, examIds }: { classId
                       <span className="text-xs font-semibold text-slate-500">
                         {row.count}/{examIds.length} đề
                       </span>
+                      {row.attendanceRate !== null ? (
+                        <span
+                          className={cn(
+                            "rounded-full px-2 py-0.5 text-[11px] font-bold",
+                            row.attendanceRate >= 80 ? "bg-emerald-50 text-emerald-700" : "bg-rose-50 text-rose-700"
+                          )}
+                          title={`Vắng ${row.absent} buổi`}
+                        >
+                          Chuyên cần {row.attendanceRate}%
+                        </span>
+                      ) : null}
                     </div>
                   </Link>
                   <div className="hidden w-24 shrink-0 text-right sm:block">
@@ -194,7 +230,15 @@ async function StudentsTab({ classId, students, studentIds, examIds }: { classId
                       Hồ sơ
                     </Link>
                     <form action={removeStudentFromClass.bind(null, classId, row.id)}>
-                      <IconDangerButton label={`Xoá ${row.name} khỏi lớp`} message={`Xoá ${row.name} khỏi lớp này? Tài khoản và bài làm vẫn được giữ.`} />
+                      <ConfirmSubmitButton
+                        variant="secondary"
+                        className="h-9 gap-1.5 border-rose-200 bg-rose-50 px-2.5 text-xs text-rose-600 shadow-none hover:border-rose-300 hover:bg-rose-100 hover:text-rose-700 sm:px-3"
+                        message={`Xoá ${row.name} khỏi lớp này? Tài khoản và bài làm vẫn được giữ.`}
+                      >
+                        <UserMinus size={15} aria-hidden />
+                        <span className="hidden sm:inline">Xoá khỏi lớp</span>
+                        <span className="sr-only sm:hidden">Xoá {row.name} khỏi lớp</span>
+                      </ConfirmSubmitButton>
                     </form>
                   </div>
                 </li>
@@ -442,8 +486,13 @@ function Avatar({ name }: { name: string }) {
 
 function IconDangerButton({ label, message }: { label: string; message: string }) {
   return (
-    <ConfirmSubmitButton variant="secondary" className="h-9 w-9 border-transparent px-0 text-slate-400 shadow-none hover:border-rose-100 hover:bg-rose-50 hover:text-rose-600" message={message}>
-      <Trash2 size={16} aria-label={label} />
+    <ConfirmSubmitButton
+      variant="secondary"
+      className="h-9 w-9 border-rose-200 bg-rose-50 px-0 text-rose-600 shadow-none hover:border-rose-300 hover:bg-rose-100 hover:text-rose-700"
+      message={message}
+    >
+      <Trash2 size={16} aria-hidden />
+      <span className="sr-only">{label}</span>
     </ConfirmSubmitButton>
   );
 }

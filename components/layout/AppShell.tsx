@@ -3,7 +3,7 @@
 import { useState } from "react";
 import Link from "next/link";
 import { usePathname } from "next/navigation";
-import { BookOpen, BookOpenCheck, GraduationCap, LayoutDashboard, LogOut, PanelLeftClose, PanelLeftOpen, Sigma, Trophy, Video } from "lucide-react";
+import { BookOpen, BookOpenCheck, CalendarDays, GraduationCap, LayoutDashboard, LogOut, PanelLeftClose, PanelLeftOpen, Sigma, Trophy, Video } from "lucide-react";
 import { signOut } from "@/lib/actions/auth";
 import { cn } from "@/lib/utils/format";
 
@@ -13,10 +13,12 @@ const NAV: Record<Role, Array<{ href: string; label: string; icon: React.Element
   teacher: [
     { href: "/teacher/dashboard", label: "Tổng quan", icon: LayoutDashboard },
     { href: "/teacher/classes", label: "Lớp học", icon: GraduationCap },
-    { href: "/teacher/exams", label: "Đề thi", icon: BookOpen }
+    { href: "/teacher/exams", label: "Đề thi", icon: BookOpen },
+    { href: "/teacher/schedule", label: "Lịch học", icon: CalendarDays }
   ],
   student: [
     { href: "/student/exams", label: "Bài thi", icon: BookOpenCheck },
+    { href: "/student/schedule", label: "Lịch học", icon: CalendarDays },
     { href: "/student/results", label: "Kết quả", icon: Trophy },
     { href: "/student/recordings", label: "Buổi học", icon: Video }
   ]

@@ -1,6 +1,7 @@
 import Link from "next/link";
 import { ArrowRight, CalendarClock, CheckCircle2, Clock3, FileText, Hourglass, Lock, PlayCircle, RotateCcw, Target, Trophy } from "lucide-react";
 import { MathDecor } from "@/components/student/MathDecor";
+import { NextSessionCard } from "@/components/schedule/NextSessionCard";
 import { ScoreRing } from "@/components/student/ScoreRing";
 import { CountUp } from "@/components/student/CountUp";
 import { StudentEmpty } from "@/components/student/StudentEmpty";
@@ -20,8 +21,9 @@ type ExamCard = {
 export default async function StudentExamsPage() {
   const student = await requireStudent();
   const supabase = createServiceClient();
-  const { data: memberships } = await supabase.from("class_students").select("class_id").eq("student_id", student.id);
+  const { data: memberships } = await supabase.from("class_students").select("class_id, classes(id, name, teacher_id, created_at)").eq("student_id", student.id);
   const classIds = memberships?.map((item) => item.class_id) ?? [];
+  const studentClasses = (memberships ?? []).map((row: any) => row.classes).filter(Boolean);
   const { data: assignments } = classIds.length
     ? await supabase
         .from("exam_assignments")
@@ -81,6 +83,8 @@ export default async function StudentExamsPage() {
           </div>
         </div>
       </section>
+
+      <NextSessionCard classes={studentClasses} />
 
       {!cards.length ? <StudentEmpty title="Chưa có bài thi" description="Giáo viên chưa giao đề cho lớp của bạn." /> : null}
 

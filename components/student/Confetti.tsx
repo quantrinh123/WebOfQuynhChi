@@ -1,6 +1,7 @@
 "use client";
 
 import { useEffect, useState } from "react";
+import { Portal } from "@/components/ui/Portal";
 
 const COLORS = ["#14b8a6", "#06b6d4", "#6366f1", "#f59e0b", "#ec4899", "#10b981"];
 const PIECES = 70;
@@ -29,7 +30,8 @@ export function Confetti() {
 
   if (!pieces.length) return null;
   return (
-    <div aria-hidden className="pointer-events-none fixed inset-0 z-50 overflow-hidden">
+    <Portal>
+    <div aria-hidden className="pointer-events-none fixed inset-0 z-[60] overflow-hidden">
       {pieces.map((piece, index) => (
         <span
           key={index}
@@ -48,5 +50,6 @@ export function Confetti() {
         />
       ))}
     </div>
+    </Portal>
   );
 }
