@@ -24,8 +24,7 @@ export function TakeExamPageClient({
   submissionId,
   questions,
   existingAnswers,
-  durationMinutes,
-  startedAt,
+  deadlineAt,
   title,
   description
 }: {
@@ -33,12 +32,11 @@ export function TakeExamPageClient({
   submissionId: string;
   questions: Question[];
   existingAnswers: ExistingAnswer[];
-  durationMinutes: number;
-  startedAt: string;
+  deadlineAt: string | null;
   title: string;
   description?: string;
 }) {
-  const expiryMs = useMemo(() => new Date(startedAt).getTime() + durationMinutes * 60_000, [startedAt, durationMinutes]);
+  const expiryMs = useMemo(() => (deadlineAt ? new Date(deadlineAt).getTime() : Number.POSITIVE_INFINITY), [deadlineAt]);
   const [secondsLeft, setSecondsLeft] = useState(() => Math.max(0, Math.round((expiryMs - Date.now()) / 1000)));
   const [autoSubmitTrigger, setAutoSubmitTrigger] = useState(0);
   const [sessionWarning, setSessionWarning] = useState(false);

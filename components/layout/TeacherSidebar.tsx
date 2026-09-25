@@ -2,15 +2,14 @@
 
 import Link from "next/link";
 import { usePathname } from "next/navigation";
-import { BarChart3, BookOpen, GraduationCap, LayoutDashboard, LogOut } from "lucide-react";
+import { BookOpen, GraduationCap, LayoutDashboard, LogOut } from "lucide-react";
 import { signOut } from "@/lib/actions/auth";
 import { cn } from "@/lib/utils/format";
 
 const links = [
   { href: "/teacher/dashboard", label: "Tổng quan", icon: LayoutDashboard },
   { href: "/teacher/classes", label: "Lớp học", icon: GraduationCap },
-  { href: "/teacher/exams", label: "Đề thi", icon: BookOpen },
-  { href: "/teacher/results", label: "Kết quả", icon: BarChart3 }
+  { href: "/teacher/exams", label: "Đề thi", icon: BookOpen }
 ];
 
 export function TeacherSidebar() {

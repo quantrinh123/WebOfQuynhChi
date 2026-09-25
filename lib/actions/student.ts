@@ -2,6 +2,7 @@
 
 import { redirect } from "next/navigation";
 import { requireStudent } from "@/lib/auth";
+import { getStudentExamAccess, isSubmissionLocked } from "@/lib/exam-access";
 import { gradeSubmission } from "@/lib/grading";
 import { createServiceClient } from "@/lib/supabase/server";
 
@@ -18,13 +19,29 @@ type SubmissionWithExam = {
 export async function startSubmission(examId: string) {
   const student = await requireStudent();
   const supabase = createServiceClient();
-  await supabase.from("submissions").upsert({ exam_id: examId, student_id: student.id, status: "doing" }, { onConflict: "exam_id,student_id" });
+  const { data: existing } = await supabase
+    .from("submissions")
+    .select("id, status")
+    .eq("exam_id", examId)
+    .eq("student_id", student.id)
+    .maybeSingle();
+
+  if (existing?.status === "doing") redirect(`/student/exams/${examId}/take`);
+  if (existing) redirect(`/student/exams/${examId}/result`);
+
+  const access = await getStudentExamAccess(supabase, examId, student.id);
+  if (!access.ok) redirect(`/student/exams/${examId}/start`);
+
+  await supabase.from("submissions").insert({ exam_id: examId, student_id: student.id, status: "doing" });
   redirect(`/student/exams/${examId}/take`);
 }
 
 export async function retakeExam(examId: string) {
   const student = await requireStudent();
   const supabase = createServiceClient();
+  const access = await getStudentExamAccess(supabase, examId, student.id);
+  if (!access.ok) redirect(`/student/exams/${examId}/result`);
+
   const { data: existing } = await supabase
     .from("submissions")
     .select("id")
@@ -46,7 +63,7 @@ export async function saveAnswer(submissionId: string, questionId: string, paylo
   const submission = await getStudentSubmission(supabase, submissionId, student.id);
 
   if (!submission || submission.status !== "doing") return;
-  if (isSubmissionExpired(submission)) {
+  if (await isSubmissionLocked(supabase, submission, submission.exams?.duration_minutes)) {
     await finalizeSubmission(supabase, submission.id);
     return;
   }
@@ -71,7 +88,8 @@ export async function submitExam(submissionId: string, answers: Array<{ question
 
   if (submission.status === "graded") redirect(`/student/exams/${submission.exam_id}/result`);
 
-  if (!isSubmissionExpired(submission)) {
+  // Hết giờ hoặc đề đã đóng thì chỉ chấm các đáp án đã lưu trước đó.
+  if (!(await isSubmissionLocked(supabase, submission, submission.exams?.duration_minutes))) {
     for (const answer of answers) {
       await supabase.from("submission_answers").upsert(
         {
@@ -96,7 +114,7 @@ export async function finalizeExpiredSubmission(submissionId: string) {
   const submission = await getStudentSubmission(supabase, submissionId, student.id);
   if (!submission) throw new Error("Không tìm thấy bài nộp.");
 
-  if (submission.status === "doing" && isSubmissionExpired(submission)) {
+  if (submission.status === "doing" && (await isSubmissionLocked(supabase, submission, submission.exams?.duration_minutes))) {
     await finalizeSubmission(supabase, submission.id);
   }
 
@@ -112,13 +130,6 @@ async function getStudentSubmission(supabase: ReturnType<typeof createServiceCli
     .maybeSingle();
 
   return data as SubmissionWithExam | null;
-}
-
-function isSubmissionExpired(submission: SubmissionWithExam) {
-  const startedAt = submission.started_at ? new Date(submission.started_at).getTime() : Date.now();
-  const durationMinutes = Number(submission.exams?.duration_minutes ?? 0);
-  if (!durationMinutes) return false;
-  return Date.now() >= startedAt + durationMinutes * 60_000;
 }
 
 async function finalizeSubmission(supabase: ReturnType<typeof createServiceClient>, submissionId: string) {

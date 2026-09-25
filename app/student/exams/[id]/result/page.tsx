@@ -1,9 +1,11 @@
 import { PdfViewer } from "@/components/exam/PdfViewer";
 import { PageHeader } from "@/components/layout/PageHeader";
 import { ScoreBadge } from "@/components/exam/Badges";
+import { Leaderboard, rankSubmissions } from "@/components/exam/Leaderboard";
 import { Button } from "@/components/ui/button";
 import { retakeExam } from "@/lib/actions/student";
 import { requireStudent } from "@/lib/auth";
+import { getStudentExamAccess } from "@/lib/exam-access";
 import { createServiceClient } from "@/lib/supabase/server";
 import { formatDateTime } from "@/lib/utils/format";
 
@@ -21,6 +23,14 @@ export default async function StudentResultPage({ params }: { params: Promise<{ 
   const { data: signedAnswer } = exam?.show_answer_after_submit && exam.answer_pdf_path
     ? await supabase.storage.from("exam-pdfs").createSignedUrl(exam.answer_pdf_path, 60 * 60)
     : { data: null };
+  const { data: examSubmissions } = exam?.show_score_after_submit
+    ? await supabase
+        .from("submissions")
+        .select("id, student_id, status, final_score, started_at, submitted_at, profiles(full_name)")
+        .eq("exam_id", id)
+    : { data: null };
+  const ranking = rankSubmissions((examSubmissions ?? []) as any[]);
+  const access = await getStudentExamAccess(supabase, id, student.id);
   const retakeAction = retakeExam.bind(null, id);
   return (
     <>
@@ -28,9 +38,11 @@ export default async function StudentResultPage({ params }: { params: Promise<{ 
         title="Kết quả bài thi"
         description={exam?.title}
         action={
-          <form action={retakeAction}>
-            <Button variant="secondary">Làm lại đề</Button>
-          </form>
+          access.ok ? (
+            <form action={retakeAction}>
+              <Button variant="secondary">Làm lại đề</Button>
+            </form>
+          ) : null
         }
       />
       {!exam?.show_score_after_submit ? (
@@ -42,6 +54,7 @@ export default async function StudentResultPage({ params }: { params: Promise<{ 
           <div className="surface p-5"><p className="text-sm text-slate-600">Số câu sai</p><p className="mt-2 text-2xl font-bold">{answerReview?.filter((row: any) => row.is_correct === false).length ?? 0}</p></div>
         </div>
       )}
+      {exam?.show_score_after_submit ? <Leaderboard rows={ranking} highlightStudentId={student.id} /> : null}
       {exam?.show_score_after_submit ? (
         <div className="table-shell mb-6">
           <div className="border-b p-4">

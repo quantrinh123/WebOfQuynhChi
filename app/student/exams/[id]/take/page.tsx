@@ -2,6 +2,7 @@ import { redirect } from "next/navigation";
 import { TakeExamPageClient } from "@/components/exam/TakeExamPageClient";
 import { finalizeExpiredSubmission } from "@/lib/actions/student";
 import { requireStudent } from "@/lib/auth";
+import { getStudentExamAccess, getSubmissionDeadline } from "@/lib/exam-access";
 import { createServiceClient } from "@/lib/supabase/server";
 
 export default async function TakeExamPage({ params }: { params: Promise<{ id: string }> }) {
@@ -14,9 +15,11 @@ export default async function TakeExamPage({ params }: { params: Promise<{ id: s
   if (!submission) redirect(`/student/exams/${id}/start`);
   if (submission.status === "graded") redirect(`/student/exams/${id}/result`);
 
-  const startedAt = submission.started_at ? new Date(submission.started_at).getTime() : Date.now();
-  const durationMinutes = Number(exam?.duration_minutes ?? 0);
-  if (submission.status === "doing" && durationMinutes > 0 && Date.now() >= startedAt + durationMinutes * 60_000) {
+  if (submission.status !== "doing") redirect(`/student/exams/${id}/result`);
+
+  const access = await getStudentExamAccess(supabase, id, student.id);
+  const deadline = access.ok ? getSubmissionDeadline(submission, exam?.duration_minutes, access.endsAt) : Date.now();
+  if (deadline !== null && Date.now() >= deadline) {
     await finalizeExpiredSubmission(submission.id);
   }
 
@@ -36,8 +39,7 @@ export default async function TakeExamPage({ params }: { params: Promise<{ id: s
       submissionId={submission.id}
       questions={questions ?? []}
       existingAnswers={answers ?? []}
-      durationMinutes={exam?.duration_minutes ?? 90}
-      startedAt={submission.started_at ?? new Date().toISOString()}
+      deadlineAt={deadline === null ? null : new Date(deadline).toISOString()}
     />
   );
 }

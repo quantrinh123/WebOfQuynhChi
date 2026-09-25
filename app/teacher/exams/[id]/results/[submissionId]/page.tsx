@@ -1,9 +1,11 @@
 import Link from "next/link";
 import { notFound } from "next/navigation";
-import { ArrowLeft } from "lucide-react";
-import { PageHeader } from "@/components/layout/PageHeader";
+import { ArrowLeft, UserRound } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { ScoreBadge } from "@/components/exam/Badges";
+import { rankSubmissions } from "@/components/exam/Leaderboard";
+import { SectionBreakdown, TopicBreakdown } from "@/components/exam/StudentAnalysis";
+import { analyzeSubmission } from "@/lib/analysis";
 import { requireTeacher } from "@/lib/auth";
 import { createServiceClient } from "@/lib/supabase/server";
 import { formatDateTime, formatScore } from "@/lib/utils/format";
@@ -27,24 +29,48 @@ export default async function SubmissionDetailPage({ params }: { params: Promise
     .select("*, exam_questions(question_no, sub_label, question_type, correct_answer, correct_answers_json, score, topic, order_no)")
     .eq("submission_id", submissionId);
 
+  const { data: questions } = await supabase
+    .from("exam_questions")
+    .select("id, parent_question_id, question_no, sub_label, question_type, score, topic, order_no")
+    .eq("exam_id", id)
+    .order("order_no");
+  const { data: examSubmissions } = await supabase
+    .from("submissions")
+    .select("id, student_id, status, final_score, started_at, submitted_at")
+    .eq("exam_id", id);
+
+  const analysis = analyzeSubmission(questions ?? [], answers ?? []);
+  const ranking = rankSubmissions(examSubmissions ?? []);
+  const ownRank = ranking.find((row) => row.id === submission.id);
+  const average = ranking.length ? ranking.reduce((sum, row) => sum + row.score, 0) / ranking.length : 0;
+  const scoreDiff = Number(submission.final_score ?? 0) - average;
+
   const sortedAnswers = [...(answers ?? [])].sort((a: any, b: any) => {
     return Number(a.exam_questions?.order_no ?? 0) - Number(b.exam_questions?.order_no ?? 0);
   });
 
   return (
     <>
-      <PageHeader
-        title="Bài làm của học sinh"
-        description={`${submission.profiles?.full_name ?? "Học sinh"} - ${submission.exams?.title ?? ""}`}
-        action={
+      <div className="mb-5 flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
+        <div>
+          <p className="text-sm font-semibold text-slate-500">Bài làm của</p>
+          <h2 className="text-xl font-black text-slate-950">{submission.profiles?.full_name ?? "Học sinh"}</h2>
+        </div>
+        <div className="flex flex-wrap gap-2">
           <Link href={`/teacher/exams/${id}/results`}>
             <Button variant="secondary" className="gap-2">
               <ArrowLeft size={16} />
-              Quay lại kết quả
+              Danh sách kết quả
             </Button>
           </Link>
-        }
-      />
+          <Link href={`/teacher/students/${submission.student_id}`}>
+            <Button variant="secondary" className="gap-2">
+              <UserRound size={16} />
+              Hồ sơ học sinh
+            </Button>
+          </Link>
+        </div>
+      </div>
 
       <div className="mb-6 grid gap-4 md:grid-cols-3">
         <div className="surface p-4">
@@ -60,6 +86,31 @@ export default async function SubmissionDetailPage({ params }: { params: Promise
           <p className="mt-2 text-xl font-bold">{formatDateTime(submission.submitted_at)}</p>
         </div>
       </div>
+
+      {submission.status !== "doing" ? (
+        <>
+          <div className="mb-6 grid gap-4 md:grid-cols-3">
+            <div className="surface p-4">
+              <p className="text-sm text-slate-600">Xếp hạng trong đề</p>
+              <p className="mt-2 text-xl font-bold">{ownRank ? `${ownRank.rank}/${ranking.length}` : "-"}</p>
+            </div>
+            <div className="surface p-4">
+              <p className="text-sm text-slate-600">So với điểm trung bình ({formatScore(average)})</p>
+              <p className={scoreDiff >= 0 ? "mt-2 text-xl font-bold text-emerald-700" : "mt-2 text-xl font-bold text-rose-700"}>
+                {scoreDiff >= 0 ? "+" : "-"}{formatScore(Math.abs(scoreDiff))} điểm
+              </p>
+            </div>
+            <div className="surface p-4">
+              <p className="text-sm text-slate-600">Đúng / Sai / Bỏ trống</p>
+              <p className="mt-2 text-xl font-bold">
+                <span className="text-emerald-700">{analysis.correct}</span> / <span className="text-rose-700">{analysis.wrong}</span> / {analysis.blank}
+              </p>
+            </div>
+          </div>
+          <SectionBreakdown sections={analysis.sections} />
+          <TopicBreakdown topics={analysis.topics} />
+        </>
+      ) : null}
 
       <div className="table-shell">
         <div className="border-b border-slate-200 p-4">

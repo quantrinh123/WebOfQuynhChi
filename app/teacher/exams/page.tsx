@@ -1,56 +1,93 @@
 import Link from "next/link";
-import { BarChart3, CalendarDays, ChevronLeft, ChevronRight, Clock3, FilePenLine, Lock, Plus, RotateCcw, Search, Send, Trash2 } from "lucide-react";
-import { closeExam, deleteExam } from "@/lib/actions/teacher";
+import { AlertTriangle, CalendarDays, ChevronLeft, ChevronRight, Clock3, MoreHorizontal, Plus, Search, Users } from "lucide-react";
+import { deleteExam, setExamStatus } from "@/lib/actions/teacher";
 import { PageHeader } from "@/components/layout/PageHeader";
+import { ActionForm, SubmitButton } from "@/components/ui/ActionForm";
 import { Button } from "@/components/ui/button";
 import { ConfirmSubmitButton } from "@/components/ui/ConfirmSubmitButton";
 import { EmptyState } from "@/components/ui/EmptyState";
 import { Input } from "@/components/ui/input";
 import { ExamStatusBadge } from "@/components/exam/Badges";
 import { requireTeacher } from "@/lib/auth";
+import { getExamSetupSteps } from "@/lib/exam-setup";
 import { createServiceClient } from "@/lib/supabase/server";
-import { formatDateTime } from "@/lib/utils/format";
+import { cn, formatDateTime, formatScore } from "@/lib/utils/format";
 
 type TeacherExamSearchParams = {
   q?: string | string[];
-  grade?: string | string[];
+  status?: string | string[];
   page?: string | string[];
 };
 
 const PAGE_SIZE = 8;
+const STATUS_FILTERS = [
+  { value: "", label: "Tất cả" },
+  { value: "draft", label: "Bản nháp" },
+  { value: "open", label: "Đang mở" },
+  { value: "closed", label: "Đã đóng" }
+];
 
 export default async function TeacherExamsPage({ searchParams }: { searchParams?: Promise<TeacherExamSearchParams> }) {
   const teacher = await requireTeacher();
   const supabase = createServiceClient();
   const resolvedSearchParams = (await searchParams) ?? {};
   const titleQuery = firstValue(resolvedSearchParams.q)?.trim() ?? "";
-  const gradeQuery = firstValue(resolvedSearchParams.grade)?.trim() ?? "";
+  const statusQuery = STATUS_FILTERS.some((item) => item.value === firstValue(resolvedSearchParams.status)) ? firstValue(resolvedSearchParams.status) ?? "" : "";
   const requestedPage = Math.max(1, Number.parseInt(firstValue(resolvedSearchParams.page) ?? "1", 10) || 1);
 
-  const countQuery = applyExamFilters(
+  const { count } = await applyExamFilters(
     supabase.from("exams").select("id", { count: "exact", head: true }).eq("teacher_id", teacher.id),
     titleQuery,
-    gradeQuery
+    statusQuery
   );
-  const { count } = await countQuery;
   const totalCount = count ?? 0;
   const totalPages = Math.max(1, Math.ceil(totalCount / PAGE_SIZE));
   const currentPage = Math.min(requestedPage, totalPages);
   const from = (currentPage - 1) * PAGE_SIZE;
-  const to = from + PAGE_SIZE - 1;
 
   const { data: exams } = await applyExamFilters(
     supabase
       .from("exams")
-      .select("id, title, status, duration_minutes, grade, created_at")
+      .select(
+        "id, title, status, duration_minutes, grade, created_at, submissions(student_id, status, final_score), exam_assignments(class_id, end_time, classes(name)), exam_questions(question_type, correct_answer, correct_answers_json)"
+      )
       .eq("teacher_id", teacher.id)
       .order("created_at", { ascending: false })
-      .range(from, to),
+      .range(from, from + PAGE_SIZE - 1),
     titleQuery,
-    gradeQuery
+    statusQuery
   );
 
-  const hasFilters = Boolean(titleQuery || gradeQuery);
+  const examList: any[] = exams ?? [];
+  const classIds = Array.from(new Set(examList.flatMap((exam: any) => (exam.exam_assignments ?? []).map((item: any) => item.class_id))));
+  const { data: roster } = classIds.length
+    ? await supabase.from("class_students").select("class_id, student_id").in("class_id", classIds)
+    : { data: [] as Array<{ class_id: string; student_id: string }> };
+
+  const rows = examList.map((exam) => {
+    const assignedClassIds = new Set((exam.exam_assignments ?? []).map((item: any) => item.class_id));
+    const studentCount = new Set((roster ?? []).filter((row) => assignedClassIds.has(row.class_id)).map((row) => row.student_id)).size;
+    const done = (exam.submissions ?? []).filter((item: any) => item.status !== "doing");
+    const average = done.length ? done.reduce((sum: number, item: any) => sum + Number(item.final_score ?? 0), 0) / done.length : null;
+    const steps = getExamSetupSteps({ questions: exam.exam_questions ?? [], assignmentCount: assignedClassIds.size, status: exam.status });
+    const nextStep = !steps.answerKeyDone
+      ? `Còn ${steps.missingAnswers} câu/ý chưa có đáp án`
+      : !steps.assigned
+        ? "Chưa giao cho lớp nào"
+        : !steps.opened
+          ? "Chưa mở cho học sinh"
+          : null;
+    return {
+      exam,
+      classNames: (exam.exam_assignments ?? []).map((item: any) => item.classes?.name).filter(Boolean) as string[],
+      doneCount: done.length,
+      studentCount,
+      average,
+      nextStep
+    };
+  });
+
+  const hasFilters = Boolean(titleQuery || statusQuery);
   const startItem = totalCount ? from + 1 : 0;
   const endItem = totalCount ? Math.min(from + PAGE_SIZE, totalCount) : 0;
 
@@ -58,7 +95,7 @@ export default async function TeacherExamsPage({ searchParams }: { searchParams?
     <>
       <PageHeader
         title="Đề thi"
-        description="Quản lý đề, nhập đáp án, giao lớp và theo dõi kết quả làm bài."
+        description="Bấm vào một đề để nhập đáp án, giao lớp và xem kết quả."
         action={
           <Link href="/teacher/exams/create">
             <Button className="gap-2">
@@ -69,99 +106,85 @@ export default async function TeacherExamsPage({ searchParams }: { searchParams?
         }
       />
 
-      <form method="get" className="surface mb-5 grid gap-4 p-4 md:grid-cols-[minmax(0,2fr)_minmax(0,1fr)_auto_auto] md:items-end">
-        <label className="text-sm font-medium">
-          Tên đề
-          <Input className="mt-1" name="q" defaultValue={titleQuery} placeholder="Tìm theo tên đề" />
-        </label>
-        <label className="text-sm font-medium">
-          Khối
-          <Input className="mt-1" name="grade" defaultValue={gradeQuery} placeholder="Ví dụ: 12" />
-        </label>
-        <Button type="submit" className="gap-2">
-          <Search size={16} />
-          Tìm
-        </Button>
-        <Link href="/teacher/exams">
-          <Button variant="secondary" className="gap-2">
-            <RotateCcw size={16} />
-            Xoá lọc
+      <div className="mb-5 flex flex-col gap-3 lg:flex-row lg:items-center lg:justify-between">
+        <div className="flex flex-wrap gap-2">
+          {STATUS_FILTERS.map((filter) => (
+            <Link
+              key={filter.value}
+              href={buildExamListHref({ q: titleQuery, status: filter.value })}
+              className={cn(
+                "rounded-full border px-3 py-1.5 text-sm font-bold transition",
+                statusQuery === filter.value ? "border-teal-700 bg-teal-700 text-white" : "border-slate-200 bg-white text-slate-700 hover:border-slate-300"
+              )}
+            >
+              {filter.label}
+            </Link>
+          ))}
+        </div>
+        <form method="get" className="flex gap-2 lg:w-96">
+          {statusQuery ? <input type="hidden" name="status" value={statusQuery} /> : null}
+          <Input name="q" defaultValue={titleQuery} placeholder="Tìm theo tên đề" />
+          <Button type="submit" variant="secondary" className="shrink-0 gap-2">
+            <Search size={16} />
+            Tìm
           </Button>
-        </Link>
-      </form>
+        </form>
+      </div>
 
-      {!exams?.length ? (
+      {!rows.length ? (
         <EmptyState
           title={hasFilters ? "Không tìm thấy đề phù hợp" : "Chưa có đề thi"}
           description={hasFilters ? "Thử bỏ bớt điều kiện tìm kiếm để xem thêm đề." : "Tạo đề Toán THPT 2025 và upload file PDF."}
         />
       ) : null}
 
-      {exams?.length ? (
+      {rows.length ? (
         <>
-          <div className="mb-4 flex flex-wrap items-center justify-between gap-3 text-sm text-slate-600">
-            <p>
-              Đang hiển thị <strong className="text-slate-900">{startItem}</strong>-
-              <strong className="text-slate-900">{endItem}</strong> / <strong className="text-slate-900">{totalCount}</strong> đề
-            </p>
-            <p>Trang {currentPage}/{totalPages}</p>
-          </div>
-
-          <div className="grid gap-4">
-            {exams.map((exam: any) => (
-              <article key={exam.id} className="surface overflow-hidden transition hover:-translate-y-0.5 hover:border-teal-200 hover:shadow-[0_18px_42px_rgba(15,23,42,0.09)]">
-                <div className="grid gap-5 p-5 lg:grid-cols-[minmax(0,1fr)_auto] lg:items-center">
-                  <div className="min-w-0">
-                    <div className="mb-3 flex flex-wrap items-center gap-3">
-                      <h2 className="truncate text-xl font-black text-slate-950">{exam.title}</h2>
+          <p className="mb-3 text-sm text-slate-600">
+            {startItem}-{endItem} / {totalCount} đề
+          </p>
+          <div className="grid gap-3">
+            {rows.map(({ exam, classNames, doneCount, studentCount, average, nextStep }) => (
+              <article key={exam.id} className="surface relative transition hover:border-teal-200 hover:shadow-[0_18px_42px_rgba(15,23,42,0.09)]">
+                <div className="grid gap-4 p-5 lg:grid-cols-[minmax(0,1fr)_auto] lg:items-center">
+                  <Link href={`/teacher/exams/${exam.id}`} className="min-w-0">
+                    <div className="mb-2 flex flex-wrap items-center gap-3">
+                      <h2 className="truncate text-lg font-black text-slate-950 hover:text-teal-800">{exam.title}</h2>
                       <ExamStatusBadge status={exam.status} />
                     </div>
-                    <div className="flex flex-wrap gap-x-5 gap-y-2 text-sm font-medium text-slate-600">
+                    <div className="flex flex-wrap gap-x-5 gap-y-1.5 text-sm text-slate-600">
+                      <span className="inline-flex items-center gap-1.5"><Clock3 size={15} className="text-slate-400" />{exam.duration_minutes} phút</span>
+                      <span className="inline-flex items-center gap-1.5"><CalendarDays size={15} className="text-slate-400" />{formatDateTime(exam.created_at)}</span>
                       <span className="inline-flex items-center gap-1.5">
-                        <Clock3 size={16} className="text-slate-400" />
-                        {exam.duration_minutes} phút
+                        <Users size={15} className="text-slate-400" />
+                        {classNames.length ? classNames.join(", ") : "Chưa giao lớp"}
                       </span>
-                      <span className="inline-flex items-center gap-1.5">
-                        <CalendarDays size={16} className="text-slate-400" />
-                        {formatDateTime(exam.created_at)}
-                      </span>
-                      <span>Khối {exam.grade}</span>
                     </div>
-                  </div>
-
-                  <div className="flex flex-wrap gap-2 lg:justify-end">
-                    <Link href={`/teacher/exams/${exam.id}/answer-key`}>
-                      <Button variant="secondary" className="h-10 gap-2 px-3">
-                        <FilePenLine size={16} />
-                        Đáp án
-                      </Button>
-                    </Link>
-                    <Link href={`/teacher/exams/${exam.id}/assign`}>
-                      <Button variant="secondary" className="h-10 gap-2 px-3">
-                        <Send size={16} />
-                        Giao đề
-                      </Button>
-                    </Link>
-                    <Link href={`/teacher/exams/${exam.id}/results`}>
-                      <Button className="h-10 gap-2 px-3">
-                        <BarChart3 size={16} />
-                        Kết quả
-                      </Button>
-                    </Link>
-                    {exam.status !== "closed" ? (
-                      <form action={closeExam.bind(null, exam.id)}>
-                        <ConfirmSubmitButton variant="secondary" className="h-10 gap-2 px-3" message={`Đóng đề ${exam.title}? Học sinh sẽ không thể tiếp tục làm đề này.`}>
-                          <Lock size={16} />
-                          Đóng
-                        </ConfirmSubmitButton>
-                      </form>
+                    {nextStep ? (
+                      <p className="mt-2 inline-flex items-center gap-1.5 text-sm font-semibold text-amber-700">
+                        <AlertTriangle size={15} />
+                        {nextStep}
+                      </p>
                     ) : null}
-                    <form action={deleteExam.bind(null, exam.id)}>
-                      <ConfirmSubmitButton variant="danger" className="h-10 gap-2 px-3" message={`Xoá đề ${exam.title}? Toàn bộ câu hỏi, giao đề, bài nộp và file PDF liên quan sẽ bị xoá.`}>
-                        <Trash2 size={16} />
-                        Xoá
-                      </ConfirmSubmitButton>
-                    </form>
+                  </Link>
+
+                  <div className="flex items-center gap-4 lg:justify-end">
+                    {exam.status !== "draft" ? (
+                      <div className="flex gap-4 text-center text-sm">
+                        <div>
+                          <p className="text-xl font-black text-slate-950">{doneCount}/{studentCount}</p>
+                          <p className="text-xs text-slate-500">đã nộp</p>
+                        </div>
+                        <div>
+                          <p className="text-xl font-black text-slate-950">{average === null ? "-" : formatScore(average)}</p>
+                          <p className="text-xs text-slate-500">điểm TB</p>
+                        </div>
+                      </div>
+                    ) : null}
+                    <Link href={`/teacher/exams/${exam.id}`}>
+                      <Button className="h-10 px-4">{nextStep ? "Tiếp tục" : "Mở đề"}</Button>
+                    </Link>
+                    <ExamMenu examId={exam.id} title={exam.title} status={exam.status} />
                   </div>
                 </div>
               </article>
@@ -170,36 +193,16 @@ export default async function TeacherExamsPage({ searchParams }: { searchParams?
 
           {totalPages > 1 ? (
             <div className="mt-5 flex flex-wrap items-center justify-between gap-3">
-              <p className="text-sm text-slate-600">
-                Trang {currentPage}/{totalPages}
-              </p>
+              <p className="text-sm text-slate-600">Trang {currentPage}/{totalPages}</p>
               <div className="flex flex-wrap gap-2">
-                {currentPage > 1 ? (
-                  <Link href={buildExamListHref({ q: titleQuery, grade: gradeQuery, page: currentPage - 1 })}>
-                    <Button variant="secondary" className="gap-2">
-                      <ChevronLeft size={16} />
-                      Trước
-                    </Button>
-                  </Link>
-                ) : (
-                  <Button variant="secondary" className="gap-2" disabled>
-                    <ChevronLeft size={16} />
-                    Trước
-                  </Button>
-                )}
-                {currentPage < totalPages ? (
-                  <Link href={buildExamListHref({ q: titleQuery, grade: gradeQuery, page: currentPage + 1 })}>
-                    <Button variant="secondary" className="gap-2">
-                      Sau
-                      <ChevronRight size={16} />
-                    </Button>
-                  </Link>
-                ) : (
-                  <Button variant="secondary" className="gap-2" disabled>
-                    Sau
-                    <ChevronRight size={16} />
-                  </Button>
-                )}
+                <PageLink disabled={currentPage <= 1} href={buildExamListHref({ q: titleQuery, status: statusQuery, page: currentPage - 1 })}>
+                  <ChevronLeft size={16} />
+                  Trước
+                </PageLink>
+                <PageLink disabled={currentPage >= totalPages} href={buildExamListHref({ q: titleQuery, status: statusQuery, page: currentPage + 1 })}>
+                  Sau
+                  <ChevronRight size={16} />
+                </PageLink>
               </div>
             </div>
           ) : null}
@@ -209,21 +212,67 @@ export default async function TeacherExamsPage({ searchParams }: { searchParams?
   );
 }
 
+function ExamMenu({ examId, title, status }: { examId: string; title: string; status: string }) {
+  const itemClass = "block w-full rounded-lg px-3 py-2 text-left text-sm font-semibold text-slate-700 hover:bg-slate-100";
+  return (
+    <details className="relative">
+      <summary className="flex h-10 w-10 cursor-pointer list-none items-center justify-center rounded-xl border border-slate-200 bg-white text-slate-600 hover:bg-slate-50 [&::-webkit-details-marker]:hidden" title="Thao tác khác">
+        <MoreHorizontal size={18} />
+      </summary>
+      <div className="absolute right-0 z-20 mt-2 w-52 rounded-xl border border-slate-200 bg-white p-1.5 shadow-[0_18px_42px_rgba(15,23,42,0.14)]">
+        <Link href={`/teacher/exams/${examId}/results`} className={itemClass}>Kết quả</Link>
+        <Link href={`/teacher/exams/${examId}/answer-key`} className={itemClass}>Đáp án</Link>
+        <Link href={`/teacher/exams/${examId}/assign`} className={itemClass}>Giao lớp</Link>
+        <Link href={`/teacher/exams/${examId}/settings`} className={itemClass}>Cài đặt</Link>
+        {status === "open" ? (
+          <ActionForm action={setExamStatus.bind(null, examId, "closed")}>
+            <SubmitButton variant="secondary" className="w-full justify-start border-0 shadow-none" confirmMessage={`Đóng đề ${title}?`}>
+              Đóng đề
+            </SubmitButton>
+          </ActionForm>
+        ) : null}
+        <form action={deleteExam.bind(null, examId)} className="mt-1 border-t border-slate-100 pt-1">
+          <ConfirmSubmitButton variant="secondary" className="w-full justify-start border-0 text-rose-700 shadow-none" message={`Xoá đề ${title}? Toàn bộ bài nộp và file PDF sẽ bị xoá.`}>
+            Xoá đề
+          </ConfirmSubmitButton>
+        </form>
+      </div>
+    </details>
+  );
+}
+
+function PageLink({ href, disabled, children }: { href: string; disabled: boolean; children: React.ReactNode }) {
+  if (disabled) {
+    return (
+      <Button variant="secondary" className="gap-2" disabled>
+        {children}
+      </Button>
+    );
+  }
+  return (
+    <Link href={href}>
+      <Button variant="secondary" className="gap-2">
+        {children}
+      </Button>
+    </Link>
+  );
+}
+
 function firstValue(value?: string | string[]) {
   return Array.isArray(value) ? value[0] : value;
 }
 
-function applyExamFilters(query: any, titleQuery: string, gradeQuery: string) {
+function applyExamFilters(query: any, titleQuery: string, statusQuery: string) {
   let nextQuery = query;
   if (titleQuery) nextQuery = nextQuery.ilike("title", `%${titleQuery}%`);
-  if (gradeQuery) nextQuery = nextQuery.eq("grade", gradeQuery);
+  if (statusQuery) nextQuery = nextQuery.eq("status", statusQuery);
   return nextQuery;
 }
 
-function buildExamListHref(filters: { q?: string; grade?: string; page?: number }) {
+function buildExamListHref(filters: { q?: string; status?: string; page?: number }) {
   const params = new URLSearchParams();
   if (filters.q) params.set("q", filters.q);
-  if (filters.grade) params.set("grade", filters.grade);
+  if (filters.status) params.set("status", filters.status);
   if (filters.page && filters.page > 1) params.set("page", String(filters.page));
   const query = params.toString();
   return query ? `/teacher/exams?${query}` : "/teacher/exams";

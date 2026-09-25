@@ -1,4 +1,5 @@
 import { NextResponse } from "next/server";
+import { isSubmissionLocked } from "@/lib/exam-access";
 import { gradeSubmission } from "@/lib/grading";
 import { createClient, createServiceClient } from "@/lib/supabase/server";
 
@@ -50,7 +51,7 @@ export async function POST(request: Request) {
     return NextResponse.json({ ok: false, status: submission.status });
   }
 
-  if (isSubmissionExpired(submission)) {
+  if (await isSubmissionLocked(serviceSupabase, submission, submission.exams?.duration_minutes)) {
     await finalizeSubmission(serviceSupabase, submission.id);
     return NextResponse.json({ ok: false, expired: true, examId: submission.exam_id });
   }
@@ -82,13 +83,6 @@ async function getStudentSubmission(supabase: ReturnType<typeof createServiceCli
     .maybeSingle();
 
   return data as SubmissionWithExam | null;
-}
-
-function isSubmissionExpired(submission: SubmissionWithExam) {
-  const startedAt = submission.started_at ? new Date(submission.started_at).getTime() : Date.now();
-  const durationMinutes = Number(submission.exams?.duration_minutes ?? 0);
-  if (!durationMinutes) return false;
-  return Date.now() >= startedAt + durationMinutes * 60_000;
 }
 
 async function finalizeSubmission(supabase: ReturnType<typeof createServiceClient>, submissionId: string) {

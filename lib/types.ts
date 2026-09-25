@@ -19,6 +19,15 @@ export type Class = {
   created_at: string;
 };
 
+export type ClassRecording = {
+  id: string;
+  class_id: string;
+  title: string;
+  url: string;
+  recorded_at: string | null;
+  created_at: string;
+};
+
 export type Exam = {
   id: string;
   teacher_id: string;

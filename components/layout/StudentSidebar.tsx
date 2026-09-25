@@ -2,13 +2,14 @@
 
 import Link from "next/link";
 import { usePathname } from "next/navigation";
-import { BookOpenCheck, LogOut, Trophy } from "lucide-react";
+import { BookOpenCheck, LogOut, Trophy, Video } from "lucide-react";
 import { signOut } from "@/lib/actions/auth";
 import { cn } from "@/lib/utils/format";
 
 const links = [
   { href: "/student/exams", label: "Bài thi", icon: BookOpenCheck },
-  { href: "/student/results", label: "Kết quả", icon: Trophy }
+  { href: "/student/results", label: "Kết quả", icon: Trophy },
+  { href: "/student/recordings", label: "Buổi học", icon: Video }
 ];
 
 export function StudentSidebar() {

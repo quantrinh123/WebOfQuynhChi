@@ -25,6 +25,10 @@ export function gradeTrueFalseGroup(items: TfItem[]) {
     if (item.studentAnswer === null || item.studentAnswer === undefined) return false;
     return String(item.studentAnswer) === String(item.correctAnswer === "true" || item.correctAnswer === "D");
   }).length;
+  return trueFalseGroupScore(correctCount);
+}
+
+export function trueFalseGroupScore(correctCount: number) {
   const map = [0, 0.1, 0.25, 0.5, 1];
   return map[correctCount] ?? 0;
 }

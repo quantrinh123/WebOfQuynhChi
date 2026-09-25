@@ -88,6 +88,15 @@ create table if not exists submissions (
   unique(exam_id, student_id)
 );
 
+create table if not exists class_recordings (
+  id uuid primary key default gen_random_uuid(),
+  class_id uuid not null references classes(id) on delete cascade,
+  title text not null,
+  url text not null,
+  recorded_at date,
+  created_at timestamptz default now()
+);
+
 create table if not exists submission_answers (
   id uuid primary key default gen_random_uuid(),
   submission_id uuid not null references submissions(id) on delete cascade,
@@ -108,6 +117,7 @@ create index if not exists class_students_student_id_idx on class_students(stude
 create index if not exists submissions_exam_id_idx on submissions(exam_id);
 create index if not exists submissions_student_id_idx on submissions(student_id);
 create index if not exists submission_answers_submission_id_idx on submission_answers(submission_id);
+create index if not exists class_recordings_class_id_idx on class_recordings(class_id);
 
 alter table profiles enable row level security;
 alter table classes enable row level security;
@@ -118,6 +128,7 @@ alter table exam_questions enable row level security;
 alter table exam_assignments enable row level security;
 alter table submissions enable row level security;
 alter table submission_answers enable row level security;
+alter table class_recordings enable row level security;
 
 create policy "profiles own select" on profiles for select using (auth.uid() = id);
 create policy "profiles teacher sees class students" on profiles for select using (
@@ -197,6 +208,15 @@ create policy "teachers view answers" on submission_answers for select using (
     join exams e on e.id = s.exam_id
     where s.id = submission_answers.submission_id and e.teacher_id = auth.uid()
   )
+);
+
+create policy "teachers manage class recordings" on class_recordings for all using (
+  exists (select 1 from classes c where c.id = class_recordings.class_id and c.teacher_id = auth.uid())
+) with check (
+  exists (select 1 from classes c where c.id = class_recordings.class_id and c.teacher_id = auth.uid())
+);
+create policy "students view class recordings" on class_recordings for select using (
+  exists (select 1 from class_students cs where cs.class_id = class_recordings.class_id and cs.student_id = auth.uid())
 );
 
 -- Storage: create private bucket exam-pdfs in Supabase dashboard.
