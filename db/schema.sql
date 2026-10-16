@@ -12,6 +12,7 @@ create table if not exists classes (
   teacher_id uuid not null references profiles(id),
   name text not null,
   description text,
+  pinned_at timestamptz,
   created_at timestamptz default now()
 );
 

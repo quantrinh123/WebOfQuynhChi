@@ -74,6 +74,18 @@ export async function updateClass(classId: string, _state: ActionResult, formDat
   return success("Đã cập nhật thông tin lớp.");
 }
 
+export async function setClassPinned(classId: string, pinned: boolean) {
+  const teacher = await requireTeacher();
+  const supabase = createServiceClient();
+  await supabase
+    .from("classes")
+    .update({ pinned_at: pinned ? new Date().toISOString() : null })
+    .eq("id", classId)
+    .eq("teacher_id", teacher.id);
+  revalidatePath("/teacher/classes");
+  revalidatePath("/teacher/exams", "layout");
+}
+
 export async function deleteClass(classId: string) {
   const teacher = await requireTeacher();
   const supabase = createServiceClient();

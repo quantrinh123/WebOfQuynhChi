@@ -1,6 +1,7 @@
 import Link from "next/link";
-import { BookOpen, ChevronRight, GraduationCap, Plus, Users } from "lucide-react";
-import { createClass } from "@/lib/actions/teacher";
+import clsx from "clsx";
+import { BookOpen, ChevronRight, GraduationCap, Pin, Plus, Users } from "lucide-react";
+import { createClass, setClassPinned } from "@/lib/actions/teacher";
 import { requireTeacher } from "@/lib/auth";
 import { createServiceClient } from "@/lib/supabase/server";
 import { PageHeader } from "@/components/layout/PageHeader";
@@ -15,11 +16,15 @@ export default async function ClassesPage() {
     .from("classes")
     .select("*, class_students(count), exam_assignments(exams(status))")
     .eq("teacher_id", teacher.id)
+    .order("pinned_at", { ascending: false, nullsFirst: false })
     .order("created_at", { ascending: false });
 
   return (
     <>
-      <PageHeader title="Lớp học" description="Bấm vào một lớp để quản lý học sinh, đề đã giao và link record buổi học." />
+      <PageHeader
+        title="Lớp học"
+        description="Bấm vào một lớp để quản lý học sinh, đề đã giao và link record buổi học. Ghim những lớp hay dạy để chúng luôn nằm trên đầu."
+      />
 
       <ActionForm action={createClass} className="surface mb-6 grid gap-3 p-4 sm:grid-cols-[1fr_2fr_auto]">
         <Input name="name" placeholder="Tên lớp, ví dụ 12A1" required />
@@ -36,34 +41,52 @@ export default async function ClassesPage() {
         {classes?.map((item: any) => {
           const assignments = item.exam_assignments ?? [];
           const openCount = assignments.filter((assignment: any) => assignment.exams?.status === "open").length;
+          const pinned = Boolean(item.pinned_at);
           return (
-            <Link
-              key={item.id}
-              href={`/teacher/classes/${item.id}`}
-              className="surface group flex flex-col p-5 transition hover:-translate-y-0.5 hover:border-teal-200 hover:shadow-[0_18px_42px_rgba(15,23,42,0.09)]"
-            >
-              <div className="flex min-w-0 items-start gap-4">
-                <div className="flex h-12 w-12 shrink-0 items-center justify-center rounded-2xl bg-teal-50 text-teal-700">
-                  <GraduationCap size={24} />
+            <div key={item.id} className="relative">
+              <Link
+                href={`/teacher/classes/${item.id}`}
+                className={clsx(
+                  "surface group flex h-full flex-col p-5 transition hover:-translate-y-0.5 hover:border-teal-200 hover:shadow-[0_18px_42px_rgba(15,23,42,0.09)]",
+                  pinned && "border-amber-200 bg-amber-50/40"
+                )}
+              >
+                <div className="flex min-w-0 items-start gap-4">
+                  <div className="flex h-12 w-12 shrink-0 items-center justify-center rounded-2xl bg-teal-50 text-teal-700">
+                    <GraduationCap size={24} />
+                  </div>
+                  <div className="min-w-0 flex-1">
+                    <h2 className="truncate text-xl font-black text-slate-950">{item.name}</h2>
+                    <p className="mt-1 line-clamp-2 text-sm leading-6 text-slate-600">{item.description || "Không có mô tả"}</p>
+                  </div>
+                  <ChevronRight size={20} className="mr-9 mt-1 text-slate-400 transition group-hover:translate-x-0.5 group-hover:text-teal-700" />
                 </div>
-                <div className="min-w-0 flex-1">
-                  <h2 className="truncate text-xl font-black text-slate-950">{item.name}</h2>
-                  <p className="mt-1 line-clamp-2 text-sm leading-6 text-slate-600">{item.description || "Không có mô tả"}</p>
+                <div className="mt-5 flex flex-wrap gap-2 text-sm font-bold text-slate-700">
+                  <span className="inline-flex items-center gap-2 rounded-full bg-slate-100 px-3 py-1.5">
+                    <Users size={16} className="text-slate-500" />
+                    {item.class_students?.[0]?.count ?? 0} học sinh
+                  </span>
+                  <span className="inline-flex items-center gap-2 rounded-full bg-slate-100 px-3 py-1.5">
+                    <BookOpen size={16} className="text-slate-500" />
+                    {assignments.length} đề
+                  </span>
+                  {openCount ? <span className="rounded-full bg-emerald-100 px-3 py-1.5 text-emerald-800">{openCount} đang mở</span> : null}
                 </div>
-                <ChevronRight size={20} className="mt-1 text-slate-400 transition group-hover:translate-x-0.5 group-hover:text-teal-700" />
-              </div>
-              <div className="mt-5 flex flex-wrap gap-2 text-sm font-bold text-slate-700">
-                <span className="inline-flex items-center gap-2 rounded-full bg-slate-100 px-3 py-1.5">
-                  <Users size={16} className="text-slate-500" />
-                  {item.class_students?.[0]?.count ?? 0} học sinh
-                </span>
-                <span className="inline-flex items-center gap-2 rounded-full bg-slate-100 px-3 py-1.5">
-                  <BookOpen size={16} className="text-slate-500" />
-                  {assignments.length} đề
-                </span>
-                {openCount ? <span className="rounded-full bg-emerald-100 px-3 py-1.5 text-emerald-800">{openCount} đang mở</span> : null}
-              </div>
-            </Link>
+              </Link>
+              <form action={setClassPinned.bind(null, item.id, !pinned)} className="absolute right-3 top-3">
+                <button
+                  type="submit"
+                  title={pinned ? "Bỏ ghim lớp" : "Ghim lớp lên đầu"}
+                  aria-label={pinned ? `Bỏ ghim lớp ${item.name}` : `Ghim lớp ${item.name}`}
+                  className={clsx(
+                    "flex h-9 w-9 items-center justify-center rounded-xl transition",
+                    pinned ? "bg-amber-100 text-amber-700 hover:bg-amber-200" : "text-slate-400 hover:bg-slate-100 hover:text-slate-700"
+                  )}
+                >
+                  <Pin size={17} fill={pinned ? "currentColor" : "none"} />
+                </button>
+              </form>
+            </div>
           );
         })}
       </div>

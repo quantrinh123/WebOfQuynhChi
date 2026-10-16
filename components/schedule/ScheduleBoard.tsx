@@ -8,6 +8,7 @@ import {
   CalendarPlus,
   CalendarRange,
   CheckCircle2,
+  ChevronDown,
   ChevronLeft,
   ClipboardCheck,
   ChevronRight,
@@ -35,6 +36,7 @@ import { cn } from "@/lib/utils/format";
 type SessionEvent = CalendarEvent;
 const MAX_PER_CELL = 3;
 const JOIN_EARLY_MS = 15 * 60_000;
+const CLASS_PREVIEW_COUNT = 6;
 
 export function ScheduleBoard({
   role,
@@ -79,6 +81,7 @@ export function ScheduleBoard({
   const [flash, setFlash] = useState<ActionResult>(null);
   const [attendanceFor, setAttendanceFor] = useState<SessionEvent | null>(null);
   const [now, setNow] = useState<number | null>(null);
+  const [showAllClasses, setShowAllClasses] = useState(false);
   useEffect(() => {
     setNow(Date.now());
     const timer = window.setInterval(() => setNow(Date.now()), 60_000);
@@ -276,9 +279,18 @@ export function ScheduleBoard({
         <section className="surface p-4">
           <h3 className="mb-3 text-sm font-black text-slate-950">Sắp tới</h3>
           {upcoming.length ? (
-            <div className="grid gap-2">
-              {upcoming.map((event) => (
-                <AgendaItem key={event.id} event={event} now={now} onOpen={setSelected} showDate />
+            <div className="grid gap-3">
+              {groupByDate(upcoming).map(([date, items]) => (
+                <div key={date}>
+                  <p className="mb-1 text-[11px] font-black uppercase tracking-wider text-slate-400">
+                    {WEEKDAY_LABELS[weekdayIndex(date)]}, {date.slice(8)}/{date.slice(5, 7)}
+                  </p>
+                  <div className="grid">
+                    {items.map((event) => (
+                      <UpcomingItem key={event.id} event={event} onOpen={setSelected} />
+                    ))}
+                  </div>
+                </div>
               ))}
             </div>
           ) : (
@@ -290,7 +302,7 @@ export function ScheduleBoard({
           <section className="surface p-4">
             <h3 className="mb-3 text-sm font-black text-slate-950">Lớp học</h3>
             <div className="grid gap-2">
-              {classes.map((item) => (
+              {(showAllClasses ? classes : classes.slice(0, CLASS_PREVIEW_COUNT)).map((item) => (
                 <div key={item.id} className="flex items-center gap-2.5 text-sm">
                   <span className={cn("h-3 w-3 shrink-0 rounded-full", CLASS_COLORS[item.colorIndex % CLASS_COLORS.length].dot)} />
                   <span className="min-w-0 flex-1 truncate font-semibold text-slate-700">{item.name}</span>
@@ -298,6 +310,16 @@ export function ScheduleBoard({
                 </div>
               ))}
             </div>
+            {classes.length > CLASS_PREVIEW_COUNT ? (
+              <button
+                type="button"
+                onClick={() => setShowAllClasses((value) => !value)}
+                className="mt-3 inline-flex items-center gap-1 text-xs font-bold text-teal-700 hover:text-teal-800"
+              >
+                {showAllClasses ? "Thu gọn" : `Xem tất cả ${classes.length} lớp`}
+                <ChevronDown size={14} className={cn("transition", showAllClasses && "rotate-180")} />
+              </button>
+            ) : null}
             <div className="mt-4 flex flex-wrap gap-x-4 gap-y-1.5 border-t border-slate-100 pt-3 text-xs text-slate-500">
               <Legend className="bg-slate-300" label="Đã huỷ" />
               <Legend className="bg-amber-300" label="Ngày nghỉ" />
@@ -403,7 +425,7 @@ function EventPill({ event, onOpen, large }: { event: CalendarEvent; onOpen: (ev
   );
 }
 
-function AgendaItem({ event, now, onOpen, showDate }: { event: SessionEvent; now: number | null; onOpen: (event: SessionEvent) => void; showDate?: boolean }) {
+function AgendaItem({ event, now, onOpen }: { event: SessionEvent; now: number | null; onOpen: (event: SessionEvent) => void }) {
   const occurrence = event.occurrence;
   const color = CLASS_COLORS[event.colorIndex % CLASS_COLORS.length];
   const cancelled = occurrence.status === "cancelled";
@@ -416,16 +438,18 @@ function AgendaItem({ event, now, onOpen, showDate }: { event: SessionEvent; now
       <button type="button" onClick={() => onOpen(event)} className="flex min-w-0 flex-1 items-center gap-3 text-left">
         <span className={cn("w-1 self-stretch rounded-full", cancelled ? "bg-slate-300" : color.dot)} />
         <span className="min-w-0 flex-1">
-          <span className="flex items-center gap-1.5 text-xs font-bold text-slate-500">
-            {showDate ? `${WEEKDAY_SHORT[weekdayIndex(occurrence.date)]} ${occurrence.date.slice(8)}/${occurrence.date.slice(5, 7)} · ` : ""}
+          <span className="flex items-center gap-1.5 whitespace-nowrap text-xs font-bold text-slate-500">
             {occurrence.start}–{occurrence.end}
             {live ? <span className="rounded-full bg-rose-100 px-1.5 text-[10px] font-black text-rose-600">ĐANG HỌC</span> : null}
           </span>
           <span className={cn("block truncate text-sm font-bold text-slate-900", cancelled && "line-through")}>{occurrence.title || event.className}</span>
-          <span className="flex items-center gap-1 truncate text-xs text-slate-500">
-            {occurrence.mode === "online" ? <Video size={12} /> : <MapPin size={12} />}
-            {event.className}
-            {occurrence.mode === "offline" && occurrence.location ? ` · ${occurrence.location}` : ""}
+          <span className="flex min-w-0 items-center gap-1 text-xs text-slate-500">
+            {occurrence.mode === "online" ? <Video size={12} className="shrink-0" /> : <MapPin size={12} className="shrink-0" />}
+            <span className="truncate">
+              {event.className}
+              {occurrence.mode === "offline" && occurrence.location ? ` · ${occurrence.location}` : ""}
+            </span>
+            {!cancelled && !ended && online && !occurrence.meetingUrl ? <span className="shrink-0 text-slate-400">· Chưa có link</span> : null}
           </span>
         </span>
       </button>
@@ -443,9 +467,42 @@ function AgendaItem({ event, now, onOpen, showDate }: { event: SessionEvent; now
             <ExternalLink size={13} />
             {joinSoon ? "Vào học" : "Link học"}
           </a>
-        ) : (
-          <span className="shrink-0 text-[11px] font-semibold text-slate-400">Chưa có link học</span>
-        )
+        ) : null
+      ) : null}
+    </div>
+  );
+}
+
+function groupByDate(events: SessionEvent[]) {
+  const groups = new Map<string, SessionEvent[]>();
+  events.forEach((event) => groups.set(event.date, [...(groups.get(event.date) ?? []), event]));
+  return [...groups.entries()];
+}
+
+function UpcomingItem({ event, onOpen }: { event: SessionEvent; onOpen: (event: SessionEvent) => void }) {
+  const occurrence = event.occurrence;
+  const color = CLASS_COLORS[event.colorIndex % CLASS_COLORS.length];
+  return (
+    <div className="-mx-2 flex items-center gap-2 rounded-lg px-2 py-2 transition hover:bg-slate-50">
+      <button type="button" onClick={() => onOpen(event)} className="flex min-w-0 flex-1 items-center gap-3 text-left">
+        <span className={cn("h-2 w-2 shrink-0 rounded-full", color.dot)} />
+        <span className="shrink-0 whitespace-nowrap text-xs font-semibold tabular-nums text-slate-500">
+          {occurrence.start} – {occurrence.end}
+        </span>
+        <span className="min-w-0 flex-1 truncate text-sm font-bold text-slate-800">{occurrence.title || event.className}</span>
+      </button>
+      {occurrence.mode === "online" && occurrence.meetingUrl ? (
+        <a
+          href={occurrence.meetingUrl}
+          target="_blank"
+          rel="noopener noreferrer"
+          title="Mở link học"
+          className="flex h-7 w-7 shrink-0 items-center justify-center rounded-md text-teal-700 transition hover:bg-teal-50"
+        >
+          <ExternalLink size={14} />
+        </a>
+      ) : occurrence.mode === "offline" ? (
+        <MapPin size={14} className="shrink-0 text-slate-400" aria-label="Học trực tiếp" />
       ) : null}
     </div>
   );

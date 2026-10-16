@@ -15,7 +15,12 @@ export default async function AssignExamPage({ params }: { params: Promise<{ id:
   const supabase = createServiceClient();
   const [{ data: exam }, { data: classes }, { data: assignments }, { data: questions }] = await Promise.all([
     supabase.from("exams").select("status").eq("id", id).single(),
-    supabase.from("classes").select("id, name, class_students(count)").eq("teacher_id", teacher.id).order("name"),
+    supabase
+      .from("classes")
+      .select("id, name, class_students(count)")
+      .eq("teacher_id", teacher.id)
+      .order("pinned_at", { ascending: false, nullsFirst: false })
+      .order("name"),
     supabase.from("exam_assignments").select("class_id, start_time, end_time").eq("exam_id", id),
     supabase.from("exam_questions").select("question_type, correct_answer, correct_answers_json").eq("exam_id", id)
   ]);
