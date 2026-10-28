@@ -4,6 +4,7 @@ import { useActionState, useMemo, useState } from "react";
 import { AlertTriangle, CheckCircle2, Wand2 } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { SubmitButton, Toast } from "@/components/ui/ActionForm";
+import { Portal } from "@/components/ui/Portal";
 import { Input } from "@/components/ui/input";
 import { cn } from "@/lib/utils/format";
 import type { ActionResult } from "@/lib/actions/result";
@@ -11,20 +12,24 @@ import type { ActionResult } from "@/lib/actions/result";
 type SingleQuestion = { id: string; question_no: number; correct_answer: string | null; score: number; topic: string | null };
 type TfGroup = { id: string; question_no: number; topic: string | null; items: Array<{ id: string; sub_label: string | null; correct_answer: string | null }> };
 type ShortQuestion = { id: string; question_no: number; correct_answers_json: string[] | null; score: number; topic: string | null };
+type EssayQuestion = { id: string; question_no: number; score: number; topic: string | null };
 
 const OPTIONS = ["A", "B", "C", "D"];
+const FORM_ID = "answer-key-form";
 
 export function AnswerKeyForm({
   action,
   singles,
   groups,
   shorts,
+  essays,
   topicSuggestions
 }: {
   action: (state: ActionResult, formData: FormData) => Promise<ActionResult>;
   singles: SingleQuestion[];
   groups: TfGroup[];
   shorts: ShortQuestion[];
+  essays: EssayQuestion[];
   topicSuggestions: string[];
 }) {
   const [state, formAction] = useActionState(action, null);
@@ -38,8 +43,9 @@ export function AnswerKeyForm({
     Object.fromEntries(shorts.map((q) => [q.id, (q.correct_answers_json ?? []).join("; ")]))
   );
   const [topics, setTopics] = useState<Record<string, string>>(() =>
-    Object.fromEntries([...singles, ...groups, ...shorts].map((q) => [q.id, q.topic ?? ""]))
+    Object.fromEntries([...singles, ...groups, ...shorts, ...essays].map((q) => [q.id, q.topic ?? ""]))
   );
+  const maxQuestionNo = Math.max(0, ...[...singles, ...groups, ...shorts, ...essays].map((q) => q.question_no));
   const [singlePaste, setSinglePaste] = useState("");
   const [tfPaste, setTfPaste] = useState("");
   const [bulkTopic, setBulkTopic] = useState({ topic: "", from: "", to: "" });
@@ -86,7 +92,7 @@ export function AnswerKeyForm({
     if (!bulkTopic.topic.trim() || !from) return;
     setTopics((current) => {
       const next = { ...current };
-      [...singles, ...groups, ...shorts].forEach((q) => {
+      [...singles, ...groups, ...shorts, ...essays].forEach((q) => {
         if (q.question_no >= from && q.question_no <= to) next[q.id] = bulkTopic.topic.trim();
       });
       return next;
@@ -94,7 +100,7 @@ export function AnswerKeyForm({
   }
 
   return (
-    <form action={formAction} className="space-y-5 pb-40 md:pb-24">
+    <form id={FORM_ID} action={formAction} className="space-y-5 pb-40 md:pb-24">
       <datalist id="topic-suggestions">
         {topicSuggestions.map((topic) => (
           <option key={topic} value={topic} />
@@ -107,8 +113,8 @@ export function AnswerKeyForm({
           <p className="mt-1 text-sm text-slate-600">Chủ đề dùng để phân tích điểm mạnh / yếu của học sinh.</p>
           <div className="mt-3 grid gap-2 sm:grid-cols-[2fr_1fr_1fr]">
             <Input list="topic-suggestions" placeholder="Chủ đề, VD: Tích phân" value={bulkTopic.topic} onChange={(event) => setBulkTopic({ ...bulkTopic, topic: event.target.value })} />
-            <Input type="number" min={1} max={22} placeholder="Từ câu" value={bulkTopic.from} onChange={(event) => setBulkTopic({ ...bulkTopic, from: event.target.value })} />
-            <Input type="number" min={1} max={22} placeholder="Đến câu" value={bulkTopic.to} onChange={(event) => setBulkTopic({ ...bulkTopic, to: event.target.value })} />
+            <Input type="number" min={1} max={maxQuestionNo} placeholder="Từ câu" value={bulkTopic.from} onChange={(event) => setBulkTopic({ ...bulkTopic, from: event.target.value })} />
+            <Input type="number" min={1} max={maxQuestionNo} placeholder="Đến câu" value={bulkTopic.to} onChange={(event) => setBulkTopic({ ...bulkTopic, to: event.target.value })} />
           </div>
         </div>
         <Button type="button" variant="secondary" onClick={applyBulkTopic}>Áp dụng</Button>
@@ -124,7 +130,7 @@ export function AnswerKeyForm({
         </div>
         <div className="grid gap-x-6 gap-y-2 lg:grid-cols-2">
           {singles.map((q) => (
-            <div key={q.id} className={cn("grid grid-cols-[64px_auto_72px_1fr] items-center gap-2 rounded-xl px-2 py-1.5", !singleAnswers[q.id] && "bg-amber-50")}>
+            <div key={q.id} className={cn("grid grid-cols-[64px_auto_88px_1fr] items-center gap-2 rounded-xl px-2 py-1.5", !singleAnswers[q.id] && "bg-amber-50")}>
               <span className="font-semibold">Câu {q.question_no}</span>
               <div className="flex gap-1">
                 {OPTIONS.map((option) => (
@@ -160,7 +166,7 @@ export function AnswerKeyForm({
             <h2 className="font-semibold">Phần II. Đúng/Sai</h2>
             <p className="text-sm text-slate-600">Mỗi câu 4 ý, chấm 0 / 0,1 / 0,25 / 0,5 / 1 điểm theo số ý đúng.</p>
           </div>
-          <QuickPaste value={tfPaste} onChange={setTfPaste} onApply={applyTfPaste} placeholder="16 ý, Đ/S. VD: ĐSSĐ SĐĐS ..." />
+          <QuickPaste value={tfPaste} onChange={setTfPaste} onApply={applyTfPaste} placeholder={`${groups.length * 4} ý, Đ/S. VD: ĐSSĐ SĐĐS ...`} />
         </div>
         <div className="grid gap-3 lg:grid-cols-2">
           {groups.map((group) => (
@@ -212,7 +218,7 @@ export function AnswerKeyForm({
         <p className="mb-4 text-sm text-slate-600">Nhiều đáp án chấp nhận được thì ngăn cách bằng dấu chấm phẩy, VD: 0,5; 1/2.</p>
         <div className="grid gap-2">
           {shorts.map((q) => (
-            <div key={q.id} className={cn("grid gap-2 rounded-xl px-2 py-1.5 md:grid-cols-[64px_2fr_72px_1fr] md:items-center", !shortAnswers[q.id]?.trim() && "bg-amber-50")}>
+            <div key={q.id} className={cn("grid gap-2 rounded-xl px-2 py-1.5 md:grid-cols-[64px_2fr_88px_1fr] md:items-center", !shortAnswers[q.id]?.trim() && "bg-amber-50")}>
               <span className="font-semibold">Câu {q.question_no}</span>
               <Input
                 name={`short_${q.id}`}
@@ -227,7 +233,25 @@ export function AnswerKeyForm({
         </div>
       </section>
 
-      <div className="fixed inset-x-3 bottom-[5.5rem] z-40 rounded-2xl border border-slate-200 bg-white/95 px-4 py-3 shadow-[0_-10px_30px_rgba(15,23,42,0.08)] backdrop-blur md:inset-x-0 md:bottom-0 md:left-72 md:rounded-none md:border-x-0 md:border-b-0 md:group-data-[collapsed=true]/shell:left-20">
+      {essays.length ? (
+        <section className="surface p-4">
+          <h2 className="font-semibold">Phần IV. Tự luận</h2>
+          <p className="mb-4 text-sm text-slate-600">Không cần đáp án. Giáo viên chấm tay từng câu trong trang bài làm của học sinh.</p>
+          <div className="grid gap-2">
+            {essays.map((q) => (
+              <div key={q.id} className="grid gap-2 rounded-xl px-2 py-1.5 md:grid-cols-[64px_88px_1fr] md:items-center">
+                <span className="font-semibold">Câu {q.question_no}</span>
+                <Input name={`score_${q.id}`} type="number" step="0.01" min={0} defaultValue={q.score} title="Điểm" className="px-2" />
+                <TopicInput id={q.id} topics={topics} setTopics={setTopics} />
+              </div>
+            ))}
+          </div>
+        </section>
+      ) : null}
+
+      {/* Render qua Portal: .animate-page có transform nên `fixed` bên trong sẽ bị lệch theo khung nội dung. */}
+      <Portal>
+      <div className="fixed inset-x-3 bottom-[5.5rem] z-40 rounded-2xl border border-slate-200 bg-white/95 px-4 py-3 shadow-[0_-10px_30px_rgba(15,23,42,0.08)] backdrop-blur md:inset-x-0 md:bottom-0 md:left-72 md:rounded-none md:border-x-0 md:border-b-0 md:[body:has([data-collapsed=true])_&]:left-20">
         <div className="mx-auto flex max-w-6xl flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
           {missing.length ? (
             <p className="flex items-center gap-2 text-sm font-semibold text-amber-800">
@@ -244,11 +268,12 @@ export function AnswerKeyForm({
             </p>
           )}
           <div className="flex gap-2">
-            <SubmitButton variant="secondary" name="intent" value="save">Lưu nháp</SubmitButton>
-            <SubmitButton name="intent" value="next">Lưu & giao lớp →</SubmitButton>
+            <SubmitButton form={FORM_ID} variant="secondary" name="intent" value="save">Lưu nháp</SubmitButton>
+            <SubmitButton form={FORM_ID} name="intent" value="next">Lưu & giao lớp →</SubmitButton>
           </div>
         </div>
       </div>
+      </Portal>
       <Toast result={state} />
     </form>
   );

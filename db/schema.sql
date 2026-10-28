@@ -44,7 +44,7 @@ create table if not exists exams (
 create table if not exists exam_sections (
   id uuid primary key default gen_random_uuid(),
   exam_id uuid not null references exams(id) on delete cascade,
-  section_type text not null check (section_type in ('single_choice', 'true_false', 'short_answer')),
+  section_type text not null check (section_type in ('single_choice', 'true_false', 'short_answer', 'essay')),
   title text not null,
   order_no int not null
 );
@@ -56,7 +56,7 @@ create table if not exists exam_questions (
   parent_question_id uuid references exam_questions(id) on delete cascade,
   question_no int not null,
   sub_label text,
-  question_type text not null check (question_type in ('single_choice', 'true_false_group', 'true_false_item', 'short_answer')),
+  question_type text not null check (question_type in ('single_choice', 'true_false_group', 'true_false_item', 'short_answer', 'essay')),
   correct_answer text,
   correct_answers_json jsonb,
   score numeric(5,2) not null default 0,

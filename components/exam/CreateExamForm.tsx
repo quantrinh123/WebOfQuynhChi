@@ -4,8 +4,9 @@ import { useState } from "react";
 import { Loader2, Upload } from "lucide-react";
 import { useRouter } from "next/navigation";
 import { Button } from "@/components/ui/button";
-import { Input } from "@/components/ui/input";
+import { Input, Select } from "@/components/ui/input";
 import { createClient } from "@/lib/supabase/client";
+import { DEFAULT_EXAM_FORMAT, EXAM_FORMATS, examFormatTotalScore, getExamFormat } from "@/lib/exam-formats";
 import { finalizeExamCreation, prepareExamCreation } from "@/lib/actions/teacher";
 
 type FormState = "idle" | "creating" | "uploading" | "finalizing" | "error";
@@ -15,6 +16,8 @@ export function CreateExamForm() {
   const [examId] = useState(() => crypto.randomUUID());
   const [state, setState] = useState<FormState>("idle");
   const [errorMessage, setErrorMessage] = useState<string | null>(null);
+  const [formatKey, setFormatKey] = useState(DEFAULT_EXAM_FORMAT);
+  const [totalScore, setTotalScore] = useState(() => String(examFormatTotalScore(getExamFormat(DEFAULT_EXAM_FORMAT))));
 
   return (
     <form
@@ -78,6 +81,24 @@ export function CreateExamForm() {
         Tên đề
         <Input className="mt-1" name="title" required />
       </label>
+      <label className="text-sm font-medium">
+        Dạng đề
+        <Select
+          name="exam_format"
+          value={formatKey}
+          onChange={(event) => {
+            setFormatKey(event.target.value);
+            setTotalScore(String(examFormatTotalScore(getExamFormat(event.target.value))));
+          }}
+          className="mt-1"
+        >
+          {EXAM_FORMATS.map((format) => (
+            <option key={format.key} value={format.key}>
+              {format.label}
+            </option>
+          ))}
+        </Select>
+      </label>
       <div className="grid gap-4 sm:grid-cols-3">
         <label className="text-sm font-medium">
           Khối
@@ -89,7 +110,7 @@ export function CreateExamForm() {
         </label>
         <label className="text-sm font-medium">
           Tổng điểm
-          <Input className="mt-1" name="total_score" type="number" step="0.01" defaultValue="10" />
+          <Input className="mt-1" name="total_score" type="number" step="0.01" value={totalScore} onChange={(event) => setTotalScore(event.target.value)} />
         </label>
       </div>
       <label className="text-sm font-medium">

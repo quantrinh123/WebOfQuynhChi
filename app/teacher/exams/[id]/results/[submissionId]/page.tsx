@@ -2,10 +2,13 @@ import Link from "next/link";
 import { notFound } from "next/navigation";
 import { ArrowLeft, UserRound } from "lucide-react";
 import { Button } from "@/components/ui/button";
+import { ActionForm, SubmitButton } from "@/components/ui/ActionForm";
+import { Input, Textarea } from "@/components/ui/input";
 import { ScoreBadge } from "@/components/exam/Badges";
 import { rankSubmissions } from "@/components/exam/Leaderboard";
 import { SectionBreakdown, TopicBreakdown } from "@/components/exam/StudentAnalysis";
-import { analyzeSubmission } from "@/lib/analysis";
+import { gradeEssayAnswers } from "@/lib/actions/teacher";
+import { analyzeSubmission, isEssayGraded } from "@/lib/analysis";
 import { requireTeacher } from "@/lib/auth";
 import { createServiceClient } from "@/lib/supabase/server";
 import { formatDateTime, formatScore } from "@/lib/utils/format";
@@ -45,7 +48,9 @@ export default async function SubmissionDetailPage({ params }: { params: Promise
   const average = ranking.length ? ranking.reduce((sum, row) => sum + row.score, 0) / ranking.length : 0;
   const scoreDiff = Number(submission.final_score ?? 0) - average;
 
-  const sortedAnswers = [...(answers ?? [])].sort((a: any, b: any) => {
+  const essays = (questions ?? []).filter((question) => question.question_type === "essay");
+  const answerByQuestion = new Map((answers ?? []).map((answer: any) => [answer.question_id, answer]));
+  const sortedAnswers = [...(answers ?? [])].filter((answer: any) => answer.exam_questions?.question_type !== "essay").sort((a: any, b: any) => {
     return Number(a.exam_questions?.order_no ?? 0) - Number(b.exam_questions?.order_no ?? 0);
   });
 
@@ -107,6 +112,44 @@ export default async function SubmissionDetailPage({ params }: { params: Promise
               </p>
             </div>
           </div>
+          {essays.length ? (
+            <section className="surface mb-6 p-4">
+              <h2 className="font-semibold">Chấm tự luận</h2>
+              <p className="mt-1 text-sm text-slate-600">
+                {analysis.pending ? `Còn ${analysis.pending} câu chờ chấm. ` : ""}Nhập điểm từng câu, điểm tổng sẽ tự cộng thêm vào phần chấm tự động.
+              </p>
+              <ActionForm action={gradeEssayAnswers.bind(null, id, submissionId)} className="mt-4 grid gap-4">
+                {essays.map((essay) => {
+                  const answer = answerByQuestion.get(essay.id);
+                  const graded = isEssayGraded(answer);
+                  return (
+                    <div key={essay.id} className="grid gap-2 rounded-xl border border-slate-200 p-3 md:grid-cols-[1fr_160px] md:items-start">
+                      <div>
+                        <p className="mb-1.5 text-sm font-bold">
+                          Câu {essay.question_no}
+                          {graded ? null : <span className="ml-2 rounded-full bg-amber-100 px-2 py-0.5 text-xs font-bold text-amber-800">Chờ chấm</span>}
+                        </p>
+                        <Textarea readOnly value={answer?.answer_text || "Học sinh không nhập bài làm online."} className="bg-slate-50 text-slate-700" />
+                      </div>
+                      <label className="text-sm font-medium">
+                        Điểm (tối đa {formatScore(essay.score)})
+                        <Input
+                          className="mt-1"
+                          name={`essay_score_${essay.id}`}
+                          type="number"
+                          step="0.05"
+                          min={0}
+                          max={Number(essay.score)}
+                          defaultValue={graded ? Number(answer?.score ?? 0) : ""}
+                        />
+                      </label>
+                    </div>
+                  );
+                })}
+                <SubmitButton className="w-fit">Lưu điểm tự luận</SubmitButton>
+              </ActionForm>
+            </section>
+          ) : null}
           <SectionBreakdown sections={analysis.sections} />
           <TopicBreakdown topics={analysis.topics} />
         </>

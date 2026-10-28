@@ -3,7 +3,7 @@ import type { SectionSummary, TopicSummary } from "@/lib/analysis";
 
 export function SectionBreakdown({ sections, showScore = true }: { sections: SectionSummary[]; showScore?: boolean }) {
   return (
-    <div className="mb-6 grid gap-4 md:grid-cols-3">
+    <div className={cn("mb-6 grid gap-4", sections.length > 3 ? "md:grid-cols-2 xl:grid-cols-4" : "md:grid-cols-3")}>
       {sections.map((section) => {
         const rate = section.total ? Math.round((section.correct / section.total) * 100) : 0;
         return (
@@ -22,6 +22,7 @@ export function SectionBreakdown({ sections, showScore = true }: { sections: Sec
               Đúng <strong className="text-emerald-700">{section.correct}</strong> · Sai <strong className="text-rose-700">{section.wrong}</strong> · Bỏ trống{" "}
               <strong className="text-slate-900">{section.blank}</strong> / {section.total} {section.key === "true_false" ? "ý" : "câu"}
             </p>
+            {section.pending ? <p className="mt-1 text-sm font-semibold text-amber-700">{section.pending} câu chờ chấm</p> : null}
           </div>
         );
       })}

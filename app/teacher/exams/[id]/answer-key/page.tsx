@@ -18,6 +18,7 @@ export default async function AnswerKeyPage({ params }: { params: Promise<{ id: 
   const all = questions ?? [];
   const singles = all.filter((q) => q.question_type === "single_choice");
   const shorts = all.filter((q) => q.question_type === "short_answer");
+  const essays = all.filter((q) => q.question_type === "essay");
   const groups = all
     .filter((q) => q.question_type === "true_false_group")
     .map((group) => {
@@ -33,6 +34,7 @@ export default async function AnswerKeyPage({ params }: { params: Promise<{ id: 
       singles={singles}
       groups={groups}
       shorts={shorts}
+      essays={essays}
       topicSuggestions={topicSuggestions}
     />
   );

@@ -50,6 +50,15 @@ export default async function ExamResultsPage({
   const avg = scores.length ? scores.reduce((sum, value) => sum + value, 0) / scores.length : 0;
   const totalStudents = new Set([...rosterIds, ...visibleSubmissions.map((row) => row.student_id)]).size;
 
+  // Đếm số câu tự luận chưa chấm của từng bài đã nộp.
+  const { data: essays } = await supabase.from("exam_questions").select("id").eq("exam_id", id).eq("question_type", "essay");
+  const essayIds = (essays ?? []).map((row) => row.id);
+  const { data: gradedEssays } =
+    essayIds.length && done.length
+      ? await supabase.from("submission_answers").select("submission_id").in("question_id", essayIds).in("submission_id", done.map((row) => row.id)).not("is_correct", "is", null)
+      : { data: [] as Array<{ submission_id: string }> };
+  const ungradedEssays = (submissionId: string) => essayIds.length - (gradedEssays ?? []).filter((row) => row.submission_id === submissionId).length;
+
   const orderedDone = [...done].sort((a, b) => (rankById.get(a.id) ?? 0) - (rankById.get(b.id) ?? 0));
 
   return (
@@ -92,7 +101,14 @@ export default async function ExamResultsPage({
                   <tr key={row.id} className="border-t">
                     <td className="p-3 font-bold"><RankCell rank={rankById.get(row.id)} /></td>
                     <td className="p-3 font-medium"><StudentLink id={row.student_id} name={row.profiles?.full_name} /></td>
-                    <td className="p-3"><StatusPill status={row.status} /></td>
+                    <td className="p-3">
+                      <div className="flex flex-wrap gap-1.5">
+                        <StatusPill status={row.status} />
+                        {ungradedEssays(row.id) > 0 ? (
+                          <span className="rounded-full bg-amber-100 px-2.5 py-1 text-xs font-bold text-amber-800">Chưa chấm {ungradedEssays(row.id)} câu TL</span>
+                        ) : null}
+                      </div>
+                    </td>
                     <td className="p-3"><ScoreBadge score={row.final_score} /></td>
                     <td className="p-3">{formatDateTime(row.submitted_at)}</td>
                     <td className="p-3">

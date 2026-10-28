@@ -72,7 +72,8 @@ export function SubmitButton({
   className,
   confirmMessage,
   name,
-  value
+  value,
+  form
 }: {
   children: React.ReactNode;
   pendingText?: string;
@@ -81,6 +82,8 @@ export function SubmitButton({
   confirmMessage?: string;
   name?: string;
   value?: string;
+  // Id của form khi nút nằm ngoài thẻ form trong DOM (VD: render qua Portal).
+  form?: string;
 }) {
   const { pending } = useFormStatus();
   return (
@@ -89,6 +92,7 @@ export function SubmitButton({
       variant={variant}
       name={name}
       value={value}
+      form={form}
       disabled={pending}
       className={cn("gap-2", className)}
       onClick={(event) => {

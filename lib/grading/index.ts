@@ -99,11 +99,37 @@ export async function gradeSubmission(submissionId: string) {
     await supabase.from("submission_answers").update({ score: update.score, is_correct: update.is_correct }).eq("id", update.id);
   }
 
-  const rounded = Math.round(total * 100) / 100;
+  // Câu tự luận do giáo viên chấm tay: giữ nguyên điểm đã chấm, chỉ cộng vào điểm cuối.
+  const essayScore = sumEssayScores(questions ?? [], answers ?? []);
+  const rounded = roundScore(total);
+  const finalScore = roundScore(total + essayScore);
   await supabase
     .from("submissions")
-    .update({ auto_score: rounded, final_score: rounded, status: "graded" })
+    .update({ auto_score: rounded, final_score: finalScore, status: "graded" })
     .eq("id", submissionId);
 
-  return rounded;
+  return finalScore;
+}
+
+// Tính lại điểm cuối sau khi giáo viên chấm tự luận: điểm tự động + điểm tự luận.
+export async function recomputeFinalScore(submissionId: string) {
+  const supabase = createServiceClient();
+  const { data: submission, error } = await supabase.from("submissions").select("id, exam_id, auto_score").eq("id", submissionId).single();
+  if (error || !submission) throw error ?? new Error("Submission not found");
+  const [{ data: questions }, { data: answers }] = await Promise.all([
+    supabase.from("exam_questions").select("id, question_type").eq("exam_id", submission.exam_id).eq("question_type", "essay"),
+    supabase.from("submission_answers").select("question_id, score").eq("submission_id", submissionId)
+  ]);
+  const finalScore = roundScore(Number(submission.auto_score ?? 0) + sumEssayScores(questions ?? [], answers ?? []));
+  await supabase.from("submissions").update({ final_score: finalScore }).eq("id", submissionId);
+  return finalScore;
+}
+
+function sumEssayScores(questions: Array<{ id: string; question_type: string }>, answers: Array<{ question_id: string; score: number | string | null }>) {
+  const essayIds = new Set(questions.filter((question) => question.question_type === "essay").map((question) => question.id));
+  return answers.filter((answer) => essayIds.has(answer.question_id)).reduce((sum, answer) => sum + Number(answer.score ?? 0), 0);
+}
+
+function roundScore(value: number) {
+  return Math.round(value * 100) / 100;
 }

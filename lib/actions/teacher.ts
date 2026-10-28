@@ -5,6 +5,8 @@ import { redirect } from "next/navigation";
 import { z } from "zod";
 import { requireTeacher } from "@/lib/auth";
 import { countMissingAnswers } from "@/lib/exam-setup";
+import { getExamFormat } from "@/lib/exam-formats";
+import { recomputeFinalScore } from "@/lib/grading";
 import { createServiceClient } from "@/lib/supabase/server";
 import { fromDateTimeInputValue } from "@/lib/utils/format";
 import { errorMessage, failure, success, type ActionResult } from "@/lib/actions/result";
@@ -240,6 +242,7 @@ export async function prepareExamCreation(formData: FormData) {
   const teacher = await requireTeacher();
   const supabase = createServiceClient();
   const examId = String(formData.get("exam_id") ?? "").trim() || crypto.randomUUID();
+  const examFormat = getExamFormat(String(formData.get("exam_format") ?? ""));
 
   // Không cho ghi đè đề của giáo viên khác nếu client gửi lên id đã tồn tại.
   const { data: existing } = await supabase.from("exams").select("teacher_id").eq("id", examId).maybeSingle();
@@ -255,7 +258,7 @@ export async function prepareExamCreation(formData: FormData) {
         grade: String(formData.get("grade") ?? "12"),
         duration_minutes: Number(formData.get("duration_minutes") ?? 90),
         total_score: Number(formData.get("total_score") ?? 10),
-        exam_format: "math_thpt_2025",
+        exam_format: examFormat.key,
         show_score_after_submit: formData.get("show_score_after_submit") === "on",
         show_answer_after_submit: formData.get("show_answer_after_submit") === "on",
         status: "draft",
@@ -308,7 +311,8 @@ export async function finalizeExamCreation(
     .eq("teacher_id", teacher.id);
   if (error) throw error;
 
-  await generateMathThpt2025Questions(supabase, examId);
+  const { data: exam } = await supabase.from("exams").select("exam_format").eq("id", examId).single();
+  await generateExamQuestions(supabase, examId, exam?.exam_format);
   revalidatePath("/teacher/exams");
   revalidatePath(`/teacher/exams/${examId}/answer-key`);
   return { redirectTo: `/teacher/exams/${examId}/answer-key` };
@@ -406,6 +410,7 @@ export async function updateAnswerKey(examId: string, _state: ActionResult, form
         // Chủ đề nhập ở cấp câu, áp dụng cho cả 4 ý.
         update.topic = question.parent_question_id ? groupTopic.get(question.parent_question_id) ?? null : null;
       }
+      if (question.question_type === "essay") update.topic = readTopic(formData, question.id);
       if (question.question_type === "short_answer") {
         update.correct_answers_json = String(formData.get(`short_${question.id}`) ?? "")
           .split(";")
@@ -479,6 +484,38 @@ export async function saveExamAssignments(examId: string, _state: ActionResult, 
   }
 }
 
+// Giáo viên chấm tay các câu tự luận của một bài làm.
+export async function gradeEssayAnswers(examId: string, submissionId: string, _state: ActionResult, formData: FormData): Promise<ActionResult> {
+  try {
+    const teacher = await requireTeacher();
+    const supabase = createServiceClient();
+    await assertTeacherOwnsExam(supabase, examId, teacher.id);
+    const { data: submission } = await supabase.from("submissions").select("id, status").eq("id", submissionId).eq("exam_id", examId).maybeSingle();
+    if (!submission) return failure("Không tìm thấy bài làm.");
+    if (submission.status === "doing") return failure("Học sinh chưa nộp bài.");
+
+    const { data: essays } = await supabase.from("exam_questions").select("id, question_no, score").eq("exam_id", examId).eq("question_type", "essay");
+    for (const essay of essays ?? []) {
+      const raw = String(formData.get(`essay_score_${essay.id}`) ?? "").trim().replace(",", ".");
+      if (!raw) continue;
+      const score = Number(raw);
+      const max = Number(essay.score);
+      if (!Number.isFinite(score) || score < 0 || score > max) return failure(`Câu ${essay.question_no}: điểm phải từ 0 đến ${max}.`);
+      const { error } = await supabase
+        .from("submission_answers")
+        .upsert({ submission_id: submissionId, question_id: essay.id, score, is_correct: score >= max }, { onConflict: "submission_id,question_id" });
+      if (error) return failure("Không lưu được điểm tự luận.");
+    }
+
+    await recomputeFinalScore(submissionId);
+    revalidateExam(examId);
+    revalidatePath(`/teacher/exams/${examId}/results/${submissionId}`);
+    return success("Đã lưu điểm tự luận.");
+  } catch (error) {
+    return failure(errorMessage(error));
+  }
+}
+
 // ---------- Hàm nội bộ ----------
 
 async function getOpenBlocker(supabase: Supabase, examId: string) {
@@ -535,30 +572,52 @@ async function findUserByEmail(supabase: Supabase, email: string) {
   return null;
 }
 
-async function generateMathThpt2025Questions(supabase: Supabase, examId: string) {
+async function generateExamQuestions(supabase: Supabase, examId: string, formatKey: string | null | undefined) {
   await supabase.from("exam_questions").delete().eq("exam_id", examId);
   await supabase.from("exam_sections").delete().eq("exam_id", examId);
 
-  const sections = [
-    { exam_id: examId, section_type: "single_choice", title: "Phần I. Trắc nghiệm", order_no: 1 },
-    { exam_id: examId, section_type: "true_false", title: "Phần II. Đúng/Sai", order_no: 2 },
-    { exam_id: examId, section_type: "short_answer", title: "Phần III. Trả lời ngắn", order_no: 3 }
-  ];
+  const format = getExamFormat(formatKey);
+  const sections = format.parts.map((part, index) => ({
+    exam_id: examId,
+    section_type: part.type,
+    title: `Phần ${ROMAN[index]}. ${SECTION_NAMES[part.type]}`,
+    order_no: index + 1
+  }));
   const { data: insertedSections, error } = await supabase.from("exam_sections").insert(sections).select();
   if (error) throw error;
   const sectionByType = new Map(insertedSections?.map((section) => [section.section_type, section.id]));
 
   const questions = [];
-  for (let i = 1; i <= 12; i += 1) {
-    questions.push({ exam_id: examId, section_id: sectionByType.get("single_choice"), question_no: i, question_type: "single_choice", score: 0.25, order_no: i });
+  let questionNo = 0;
+  for (const part of format.parts) {
+    const sectionId = sectionByType.get(part.type);
+    if (part.type === "single_choice") {
+      for (let i = 0; i < part.count; i += 1) {
+        questionNo += 1;
+        questions.push({ exam_id: examId, section_id: sectionId, question_no: questionNo, question_type: "single_choice", score: part.score, order_no: questionNo });
+      }
+    }
+    if (part.type === "true_false") {
+      for (let i = 0; i < part.count; i += 1) {
+        questionNo += 1;
+        questions.push({ exam_id: examId, section_id: sectionId, question_no: questionNo, question_type: "true_false_group", score: part.score, scoring_rule: "tf_group_0_0.1_0.25_0.5_1", order_no: questionNo * 10 });
+      }
+    }
+    if (part.type === "short_answer") {
+      for (let i = 0; i < part.count; i += 1) {
+        questionNo += 1;
+        questions.push({ exam_id: examId, section_id: sectionId, question_no: questionNo, question_type: "short_answer", score: part.score, order_no: questionNo * 10 });
+      }
+    }
+    if (part.type === "essay") {
+      for (const score of part.scores) {
+        questionNo += 1;
+        questions.push({ exam_id: examId, section_id: sectionId, question_no: questionNo, question_type: "essay", score, scoring_rule: "manual", order_no: questionNo * 10 });
+      }
+    }
   }
-  for (let questionNo = 13; questionNo <= 16; questionNo += 1) {
-    questions.push({ exam_id: examId, section_id: sectionByType.get("true_false"), question_no: questionNo, question_type: "true_false_group", score: 1, scoring_rule: "tf_group_0_0.1_0.25_0.5_1", order_no: questionNo * 10 });
-  }
-  for (let i = 17; i <= 22; i += 1) {
-    questions.push({ exam_id: examId, section_id: sectionByType.get("short_answer"), question_no: i, question_type: "short_answer", score: 0.5, order_no: i * 10 });
-  }
-  const { data: insertedQuestions } = await supabase.from("exam_questions").insert(questions).select();
+  const { data: insertedQuestions, error: questionError } = await supabase.from("exam_questions").insert(questions).select();
+  if (questionError) throw questionError;
   const groups = insertedQuestions?.filter((question) => question.question_type === "true_false_group") ?? [];
   const items = groups.flatMap((group) =>
     ["a", "b", "c", "d"].map((label, index) => ({
@@ -574,3 +633,6 @@ async function generateMathThpt2025Questions(supabase: Supabase, examId: string)
   );
   if (items.length) await supabase.from("exam_questions").insert(items);
 }
+
+const ROMAN = ["I", "II", "III", "IV", "V", "VI"];
+const SECTION_NAMES = { single_choice: "Trắc nghiệm", true_false: "Đúng/Sai", short_answer: "Trả lời ngắn", essay: "Tự luận" } as const;

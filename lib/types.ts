@@ -1,7 +1,7 @@
 export type Role = "teacher" | "student";
 export type ExamStatus = "draft" | "open" | "closed";
-export type SectionType = "single_choice" | "true_false" | "short_answer";
-export type QuestionType = "single_choice" | "true_false_group" | "true_false_item" | "short_answer";
+export type SectionType = "single_choice" | "true_false" | "short_answer" | "essay";
+export type QuestionType = "single_choice" | "true_false_group" | "true_false_item" | "short_answer" | "essay";
 export type SubmissionStatus = "doing" | "submitted" | "graded";
 
 export type Profile = {

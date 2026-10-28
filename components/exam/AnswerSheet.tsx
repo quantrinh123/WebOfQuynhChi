@@ -3,7 +3,7 @@
 import { useEffect, useMemo, useRef, useState, useTransition } from "react";
 import { submitExam } from "@/lib/actions/student";
 import { Button } from "@/components/ui/button";
-import { Input } from "@/components/ui/input";
+import { Input, Textarea } from "@/components/ui/input";
 import { cn } from "@/lib/utils/format";
 
 type Question = {
@@ -53,6 +53,7 @@ export function AnswerSheet({
   const singles = questions.filter((q) => q.question_type === "single_choice");
   const groups = questions.filter((q) => q.question_type === "true_false_group");
   const shorts = questions.filter((q) => q.question_type === "short_answer");
+  const essays = questions.filter((q) => q.question_type === "essay");
   const answerable = questions.filter((q) => q.question_type !== "true_false_group");
   const answeredCount = answerable.filter((q) => answers[q.id]).length;
   const isBusy = pending || savingCount > 0;
@@ -74,7 +75,7 @@ export function AnswerSheet({
           questionId: question.id,
           selected_option: question.question_type === "single_choice" ? value : null,
           boolean_answer: question.question_type === "true_false_item" ? value === "true" : null,
-          answer_text: question.question_type === "short_answer" ? value : null
+          answer_text: hasTextAnswer(question) ? value : null
         })
       });
 
@@ -97,7 +98,7 @@ export function AnswerSheet({
           questionId: question.id,
           selected_option: question.question_type === "single_choice" ? answers[question.id] : undefined,
           boolean_answer: question.question_type === "true_false_item" ? answers[question.id] === "true" : undefined,
-          answer_text: question.question_type === "short_answer" ? answers[question.id] : undefined
+          answer_text: hasTextAnswer(question) ? answers[question.id] : undefined
         }))
       );
     });
@@ -127,7 +128,7 @@ export function AnswerSheet({
       </div>
 
       <div className="min-h-0 flex-1 space-y-2 overflow-y-auto overscroll-y-contain p-2 pb-3 [-webkit-overflow-scrolling:touch]">
-        <SectionTitle title="Phần I" subtitle="Trắc nghiệm" />
+        {singles.length ? <SectionTitle title="Phần I" subtitle="Trắc nghiệm" /> : null}
         <div className="grid gap-1.5">
           {singles.map((q) => (
             <QuestionCard key={q.id} title={`Câu ${q.question_no}`}>
@@ -140,7 +141,7 @@ export function AnswerSheet({
           ))}
         </div>
 
-        <SectionTitle title="Phần II" subtitle="Đúng/Sai" />
+        {groups.length ? <SectionTitle title="Phần II" subtitle="Đúng/Sai" /> : null}
         <div className="grid gap-1.5">
           {groups.map((group) => (
             <QuestionCard key={group.id} title={`Câu ${group.question_no}`}>
@@ -159,11 +160,25 @@ export function AnswerSheet({
           ))}
         </div>
 
-        <SectionTitle title="Phần III" subtitle="Trả lời ngắn" />
+        {shorts.length ? <SectionTitle title="Phần III" subtitle="Trả lời ngắn" /> : null}
         <div className="grid gap-1.5">
           {shorts.map((q) => (
             <QuestionCard key={q.id} title={`Câu ${q.question_no}`}>
               <Input className="h-9 rounded-lg py-1.5" value={answers[q.id] ?? ""} onChange={(event) => update(q, event.target.value)} placeholder="Nhập đáp án" />
+            </QuestionCard>
+          ))}
+        </div>
+
+        {essays.length ? <SectionTitle title="Phần IV" subtitle="Tự luận" /> : null}
+        <div className="grid gap-1.5">
+          {essays.map((q) => (
+            <QuestionCard key={q.id} title={`Câu ${q.question_no}`}>
+              <Textarea
+                className="rounded-lg py-1.5"
+                value={answers[q.id] ?? ""}
+                onChange={(event) => update(q, event.target.value)}
+                placeholder="Trình bày lời giải"
+              />
             </QuestionCard>
           ))}
         </div>
@@ -184,6 +199,10 @@ export function AnswerSheet({
       </div>
     </div>
   );
+}
+
+function hasTextAnswer(question: Question) {
+  return question.question_type === "short_answer" || question.question_type === "essay";
 }
 
 function SectionTitle({ title, subtitle }: { title: string; subtitle: string }) {

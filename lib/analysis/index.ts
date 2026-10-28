@@ -20,7 +20,7 @@ type AnalysisAnswer = {
   score: number | string | null;
 };
 
-export type SectionKey = "single_choice" | "true_false" | "short_answer";
+export type SectionKey = "single_choice" | "true_false" | "short_answer" | "essay";
 
 export type SectionSummary = {
   key: SectionKey;
@@ -28,6 +28,8 @@ export type SectionSummary = {
   correct: number;
   wrong: number;
   blank: number;
+  // Câu tự luận đã làm nhưng giáo viên chưa chấm.
+  pending: number;
   total: number;
   score: number;
   maxScore: number;
@@ -46,13 +48,15 @@ export type SubmissionAnalysis = {
   correct: number;
   wrong: number;
   blank: number;
+  pending: number;
   total: number;
 };
 
 export const SECTION_TITLES: Record<SectionKey, string> = {
   single_choice: "Phần I. Trắc nghiệm",
   true_false: "Phần II. Đúng/Sai",
-  short_answer: "Phần III. Trả lời ngắn"
+  short_answer: "Phần III. Trả lời ngắn",
+  essay: "Phần IV. Tự luận"
 };
 
 const NO_TOPIC = "Chưa gắn chủ đề";
@@ -66,7 +70,24 @@ function sectionOf(question: AnalysisQuestion): SectionKey | null {
   if (question.question_type === "single_choice") return "single_choice";
   if (question.question_type === "true_false_item") return "true_false";
   if (question.question_type === "short_answer") return "short_answer";
+  if (question.question_type === "essay") return "essay";
   return null;
+}
+
+export type AnswerStatus = "correct" | "wrong" | "blank" | "pending";
+
+// Câu tự luận: đã chấm khi is_correct khác null (giáo viên chấm sẽ ghi is_correct).
+export function isEssayGraded(answer: Pick<AnalysisAnswer, "is_correct"> | undefined) {
+  return answer?.is_correct === true || answer?.is_correct === false;
+}
+
+export function answerStatus(question: Pick<AnalysisQuestion, "question_type">, answer: AnalysisAnswer | undefined): AnswerStatus {
+  if (question.question_type === "essay") {
+    if (isEssayGraded(answer)) return answer?.is_correct ? "correct" : "wrong";
+    return isBlank(answer) ? "blank" : "pending";
+  }
+  if (isBlank(answer)) return "blank";
+  return answer?.is_correct === true ? "correct" : "wrong";
 }
 
 // Phân tích một bài làm: điểm từng phần, số câu đúng/sai/bỏ trống, tỉ lệ đúng theo chủ đề.
@@ -76,7 +97,7 @@ export function analyzeSubmission(questions: AnalysisQuestion[], answers: Analys
   const sections = new Map<SectionKey, SectionSummary>(
     (Object.keys(SECTION_TITLES) as SectionKey[]).map((key) => [
       key,
-      { key, title: SECTION_TITLES[key], correct: 0, wrong: 0, blank: 0, total: 0, score: 0, maxScore: 0 }
+      { key, title: SECTION_TITLES[key], correct: 0, wrong: 0, blank: 0, pending: 0, total: 0, score: 0, maxScore: 0 }
     ])
   );
   const topics = new Map<string, { correct: number; total: number }>();
@@ -86,15 +107,20 @@ export function analyzeSubmission(questions: AnalysisQuestion[], answers: Analys
     if (!key) continue;
     const section = sections.get(key)!;
     const answer = answerByQuestion.get(question.id);
-    const blank = isBlank(answer);
-    const correct = !blank && answer?.is_correct === true;
+    const status = answerStatus(question, answer);
+    const correct = status === "correct";
 
     section.total += 1;
-    if (blank) section.blank += 1;
+    if (status === "blank") section.blank += 1;
+    else if (status === "pending") section.pending += 1;
     else if (correct) section.correct += 1;
     else section.wrong += 1;
 
-    if (key !== "true_false") {
+    if (key === "essay") {
+      // Tự luận được điểm từng phần nên cộng đúng số điểm giáo viên chấm.
+      section.maxScore += Number(question.score ?? 0);
+      section.score += status === "pending" ? 0 : Number(answer?.score ?? 0);
+    } else if (key !== "true_false") {
       section.maxScore += Number(question.score ?? 0);
       section.score += correct ? Number(answer?.score ?? 0) : 0;
     }
@@ -128,6 +154,7 @@ export function analyzeSubmission(questions: AnalysisQuestion[], answers: Analys
     correct: sectionList.reduce((sum, section) => sum + section.correct, 0),
     wrong: sectionList.reduce((sum, section) => sum + section.wrong, 0),
     blank: sectionList.reduce((sum, section) => sum + section.blank, 0),
+    pending: sectionList.reduce((sum, section) => sum + section.pending, 0),
     total: sectionList.reduce((sum, section) => sum + section.total, 0)
   };
 }
@@ -139,8 +166,9 @@ export function mergeAnalyses(analyses: SubmissionAnalysis[]) {
 
   for (const analysis of analyses) {
     for (const section of analysis.sections) {
-      const row = sections.get(section.key) ?? { ...section, correct: 0, wrong: 0, blank: 0, total: 0, score: 0, maxScore: 0 };
+      const row = sections.get(section.key) ?? { ...section, correct: 0, wrong: 0, blank: 0, pending: 0, total: 0, score: 0, maxScore: 0 };
       row.correct += section.correct;
+      row.pending += section.pending;
       row.wrong += section.wrong;
       row.blank += section.blank;
       row.total += section.total;

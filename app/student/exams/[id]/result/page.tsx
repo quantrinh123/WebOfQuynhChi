@@ -8,13 +8,11 @@ import { MathDecor } from "@/components/student/MathDecor";
 import { ScoreRing, scoreMessage } from "@/components/student/ScoreRing";
 import { SubmitButton } from "@/components/ui/ActionForm";
 import { retakeExam } from "@/lib/actions/student";
-import { analyzeSubmission } from "@/lib/analysis";
+import { analyzeSubmission, answerStatus, type AnswerStatus } from "@/lib/analysis";
 import { requireStudent } from "@/lib/auth";
 import { getStudentExamAccess } from "@/lib/exam-access";
 import { createServiceClient } from "@/lib/supabase/server";
 import { cn, formatDateTime, formatScore } from "@/lib/utils/format";
-
-type AnswerStatus = "correct" | "wrong" | "blank";
 
 export default async function StudentResultPage({ params }: { params: Promise<{ id: string }> }) {
   const student = await requireStudent();
@@ -54,12 +52,8 @@ export default async function StudentResultPage({ params }: { params: Promise<{ 
 
   const answerById = new Map((answers ?? []).map((answer) => [answer.question_id, answer]));
   const answerable = (questions ?? []).filter((question) => question.question_type !== "true_false_group");
-  const statusOf = (questionId: string): AnswerStatus => {
-    const answer = answerById.get(questionId);
-    const blank = !answer || (!answer.selected_option && (answer.boolean_answer === null || answer.boolean_answer === undefined) && !answer.answer_text?.trim());
-    if (blank) return "blank";
-    return answer.is_correct ? "correct" : "wrong";
-  };
+  const questionById = new Map(answerable.map((question) => [question.id, question]));
+  const statusOf = (questionId: string): AnswerStatus => answerStatus(questionById.get(questionId)!, answerById.get(questionId));
   const retakeAction = retakeExam.bind(null, id);
 
   return (
@@ -87,9 +81,13 @@ export default async function StudentResultPage({ params }: { params: Promise<{ 
                 <StatPill icon={CheckCircle2} tone="bg-emerald-50 text-emerald-700" value={analysis.correct} label="đúng" />
                 <StatPill icon={XCircle} tone="bg-rose-50 text-rose-700" value={analysis.wrong} label="sai" />
                 <StatPill icon={MinusCircle} tone="bg-slate-100 text-slate-600" value={analysis.blank} label="bỏ trống" />
+                {analysis.pending ? <StatPill icon={Clock3} tone="bg-amber-50 text-amber-700" value={analysis.pending} label="chờ chấm" /> : null}
                 {ownRank ? <StatPill icon={Trophy} tone="bg-amber-50 text-amber-700" value={`#${ownRank.rank}`} label={`/ ${ranking.length}`} /> : null}
                 {durationMs !== null ? <StatPill icon={Clock3} tone="bg-sky-50 text-sky-700" value={formatDuration(durationMs)} label="" /> : null}
               </div>
+              {analysis.pending ? (
+                <p className="mt-3 text-sm font-semibold text-amber-700">Điểm hiện tại chưa gồm {analysis.pending} câu tự luận đang chờ giáo viên chấm.</p>
+              ) : null}
             </div>
             {access.ok ? (
               <form action={retakeAction} className="md:self-start">
@@ -116,7 +114,7 @@ export default async function StudentResultPage({ params }: { params: Promise<{ 
       {showScore ? (
         <>
           {/* Từng phần + chủ đề cần ôn */}
-          <section className="grid gap-4 md:grid-cols-3">
+          <section className={cn("grid gap-4", analysis.sections.length > 3 ? "md:grid-cols-2 xl:grid-cols-4" : "md:grid-cols-3")}>
             {analysis.sections.map((section, index) => (
               <div key={section.key} className="surface animate-rise-in flex items-center gap-4 p-5" style={{ animationDelay: `${100 + index * 80}ms` }}>
                 <ScoreRing id={section.key} score={section.score} max={section.maxScore || 1} size={76} stroke={3.6} />
@@ -157,13 +155,15 @@ export default async function StudentResultPage({ params }: { params: Promise<{ 
                   <Legend className="bg-emerald-500" label="Đúng" />
                   <Legend className="bg-rose-500" label="Sai" />
                   <Legend className="bg-slate-300" label="Bỏ trống" />
+                  {analysis.pending ? <Legend className="bg-amber-400" label="Chờ chấm" /> : null}
                 </div>
               </div>
               <div className="grid gap-5">
                 {[
                   { title: "Phần I", items: answerable.filter((q) => q.question_type === "single_choice") },
                   { title: "Phần II", items: answerable.filter((q) => q.question_type === "true_false_item") },
-                  { title: "Phần III", items: answerable.filter((q) => q.question_type === "short_answer") }
+                  { title: "Phần III", items: answerable.filter((q) => q.question_type === "short_answer") },
+                  { title: "Phần IV", items: answerable.filter((q) => q.question_type === "essay") }
                 ].map((part) =>
                   part.items.length ? (
                     <div key={part.title}>
@@ -174,12 +174,13 @@ export default async function StudentResultPage({ params }: { params: Promise<{ 
                           return (
                             <span
                               key={question.id}
-                              title={`Câu ${question.question_no}${question.sub_label ?? ""}: ${status === "correct" ? "Đúng" : status === "wrong" ? "Sai" : "Bỏ trống"}`}
+                              title={`Câu ${question.question_no}${question.sub_label ?? ""}: ${STATUS_LABELS[status]}`}
                               className={cn(
                                 "animate-rise-in flex h-10 min-w-10 items-center justify-center rounded-xl px-1.5 text-xs font-black",
                                 status === "correct" && "bg-emerald-500 text-white shadow-[0_4px_0_#059669]",
                                 status === "wrong" && "bg-rose-500 text-white shadow-[0_4px_0_#e11d48]",
-                                status === "blank" && "bg-slate-200 text-slate-500 shadow-[0_4px_0_#cbd5e1]"
+                                status === "blank" && "bg-slate-200 text-slate-500 shadow-[0_4px_0_#cbd5e1]",
+                                status === "pending" && "bg-amber-400 text-white shadow-[0_4px_0_#d97706]"
                               )}
                               style={{ animationDelay: `${index * 25}ms` }}
                             >
@@ -226,10 +227,13 @@ export default async function StudentResultPage({ params }: { params: Promise<{ 
                                   "rounded-full px-2.5 py-1 text-xs font-bold",
                                   status === "correct" && "bg-emerald-100 text-emerald-800",
                                   status === "wrong" && "bg-rose-100 text-rose-800",
-                                  status === "blank" && "bg-slate-100 text-slate-600"
+                                  status === "blank" && "bg-slate-100 text-slate-600",
+                                  status === "pending" && "bg-amber-100 text-amber-800"
                                 )}
                               >
-                                {status === "correct" ? "Đúng" : status === "wrong" ? "Sai" : "Bỏ trống"}
+                                {question.question_type === "essay" && (status === "correct" || status === "wrong")
+                                  ? `${formatScore(answerById.get(question.id)?.score)}/${formatScore(question.score)} điểm`
+                                  : STATUS_LABELS[status]}
                               </span>
                             </td>
                           </tr>
@@ -380,7 +384,10 @@ function formatStudentAnswer(answer: any) {
   return answer.answer_text || <span className="text-slate-400">-</span>;
 }
 
+const STATUS_LABELS: Record<AnswerStatus, string> = { correct: "Đúng", wrong: "Sai", blank: "Bỏ trống", pending: "Chờ chấm" };
+
 function formatCorrectAnswer(question: any) {
+  if (question.question_type === "essay") return <span className="font-normal text-slate-500">Xem lời giải</span>;
   if (question.question_type === "true_false_item") return question.correct_answer === "true" ? "Đúng" : "Sai";
   if (question.question_type === "short_answer") {
     const answers = Array.isArray(question.correct_answers_json) ? question.correct_answers_json : [];
