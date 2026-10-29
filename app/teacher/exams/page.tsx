@@ -145,7 +145,7 @@ export default async function TeacherExamsPage({ searchParams }: { searchParams?
           </p>
           <div className="grid gap-3">
             {rows.map(({ exam, classNames, doneCount, studentCount, average, nextStep }) => (
-              <article key={exam.id} className="surface relative transition hover:border-teal-200 hover:shadow-[0_18px_42px_rgba(15,23,42,0.09)]">
+              <article key={exam.id} className="surface relative transition has-[details[open]]:z-30 hover:border-teal-200 hover:shadow-[0_18px_42px_rgba(15,23,42,0.09)]">
                 <div className="grid gap-4 p-5 lg:grid-cols-[minmax(0,1fr)_auto] lg:items-center">
                   <Link href={`/teacher/exams/${exam.id}`} className="min-w-0">
                     <div className="mb-2 flex flex-wrap items-center gap-3">
